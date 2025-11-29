@@ -181,53 +181,86 @@ class RequestRecipient(RequestTypeFlags, Enum):
 
 
 
+class AccessError(PermissionError):
+    """
+    An error raised when access to a device is denied. It could be that the
+    user lacks the necessary permissions, or the device is already in use
+    elsewhere (such as the kernel driver).
+    """
+    pass
 
+class NoDeviceError(OSError):
+    """
+    An error raised when IO is attempted on a non-present device. The device
+    may not exist, or may have been disconnected.
+    """
+    pass
 
-# TODO: add errno enum
-class USBError(Exception):
-    """An exception class for USB errors."""
+class NotFoundError(OSError):
+    """
+    An error raised if the requested device or resource could not be found.
+    This doesn't necessarily indicate that the physical device is unplugged
+    or disconnected, just that libusb couldn't access it in the expected
+    manner. This is usually caused by missing drivers.
+    """
+    pass
 
-    _default_prefix = None
+class ResourceBusyError(OSError):
+    """
+    An error raised when IO is attempted on a device or resource that is
+    currently in use, and as such, can't be accessed by a new request.
+    """
+    pass
 
-    def __init__(self, errno, prefix = None):
-        self.errno = errno
-        self.name = _libusb.libusb_error_name(errno).decode('utf8')
-        self.strerror = _libusb.libusb_strerror(errno).decode('utf8')
-        self.prefix = prefix or self._default_prefix
+class BufferOverflowError(BufferError):
+    """
+    This is a specific type of BufferError (and as such, is a subclass of)
+    that is raised when more data is received from a device than space was
+    allocated for the transfer.
+    """
+    pass
 
-    def __str__(self):
-        errstr = ""
-        if self.prefix is not None:
-            errstr += f"{self.prefix} failed with "
+class PipeError(BrokenPipeError):
+    """
+    An error raised when a USB pipe error is encountered. This is technically
+    just a BrokenPipeError (and as such, is a subclass of).
+    """
+    pass
 
-        errstr += f"{self.name}: {self.strerror}"
-        return errstr
+import errno
+_errmap = {
+    _libusb.LIBUSB_ERROR_IO: (OSError, errno.EIO),
+    #_libusb.LIBUSB_ERROR_INVALID_PARAM: errno.EINVAL,
+    _libusb.LIBUSB_ERROR_INVALID_PARAM: (ValueError,),
+    _libusb.LIBUSB_ERROR_ACCESS: (AccessError, errno.EACCES),
+    _libusb.LIBUSB_ERROR_NO_DEVICE: (NoDeviceError, errno.ENODEV),
+    _libusb.LIBUSB_ERROR_NOT_FOUND: (NotFoundError, errno.ENOENT),
+    _libusb.LIBUSB_ERROR_BUSY: (ResourceBusyError, errno.EBUSY),
+    _libusb.LIBUSB_ERROR_TIMEOUT: (TimeoutError, errno.ETIMEDOUT),
+    #_libusb.LIBUSB_ERROR_OVERFLOW: errno.EOVERFLOW,
+    _libusb.LIBUSB_ERROR_OVERFLOW: (BufferOverflowError,),
+    _libusb.LIBUSB_ERROR_PIPE: (PipeError, errno.EPIPE),
+    _libusb.LIBUSB_ERROR_INTERRUPTED: (InterruptedError, errno.EINTR),
+    #_libusb.LIBUSB_ERROR_NO_MEM: errno.ENOMEM,
+    _libusb.LIBUSB_ERROR_NO_MEM: (MemoryError,),
+    #_libusb.LIBUSB_ERROR_NOT_SUPPORTED: errno.EOPNOTSUPP,
+    _libusb.LIBUSB_ERROR_NOT_SUPPORTED: (NotImplementedError,),
+    #_libusb.LIBUSB_ERROR_OTHER: errno.EFAULT
+    _libusb.LIBUSB_ERROR_OTHER: (RuntimeError,)
+}
 
-    def __repr__(self):
-        return f"{self.__class__.__name__}({self.name})"
-
-
+# Used to map and raise errors encountered from libusb.
 def _catch(e):
     if e < 0:
-        raise USBError(e)
-    return e
+        msg = _libusb.libusb_strerror(e).decode('utf8')
 
-
-
-class USBTransferError(USBError):
-    """
-    A USBError subclass specifically for transfer errors.
-    """
-
-    _default_prefix = "Transfer"
-
-    def __str__(self):
-        errstr = ""
-        if self.prefix:
-            errstr += f"{self.prefix} failed with "
-
-        errstr += f"{self.name}"
-        return errstr
+        if e in _errmap:
+            errtype, *errargs = _errmap[e]
+            raise errtype(*errargs, msg)
+        else:
+            raise RuntimeError(msg)
+    else:
+        return e
 
 
 
@@ -702,7 +735,7 @@ class DeviceHandle:
                                                  buffer, len(buffer), timeout)
 
         if result < 0:
-            raise USBError(result)
+            _catch(result)
 
         return bytes(buffer), result
 
@@ -786,19 +819,15 @@ class DeviceHandle:
         release_interface (ignoring "NO_DEVICE" errors) on exit.
         """
 
-        # Claim the interface.
         self.claim_interface(interface)
 
         try:
             yield
         finally:
             try:
-                # Release the interface.
                 self.release_interface(interface)
-            except USBError as exc:
-                # Ignore "no device" errors.
-                if not exc.errno == _libusb.LIBUSB_ERROR_NO_DEVICE:
-                    raise
+            except NoDeviceError:
+                pass
 
 
     def set_interface_alt_setting(self, interface: Interface | int,
@@ -827,11 +856,10 @@ class DeviceHandle:
         The system will attempt to restore the previous configuration and
         alternate settings after the reset has completed.
 
-        If the reset fails, the descriptors change, or the previous state
-        cannot be restored, the device will appear to be disconnected and
-        reconnected. This means that the device handle is no longer valid
-        (you should close it) and rediscover the device. A USBError with
-        an errno of LIBUSB_ERROR_NOT_FOUND indicates when this is the case.
+        If the reset fails (with a NotFoundError), the descriptors change,
+        or the previous state cannot be restored, the device will appear to
+        be disconnected and reconnected. This means that the device handle
+        is no longer valid (you should close it) and rediscover the device.
 
         This is a blocking function which usually incurs a noticeable delay.
         """
@@ -846,7 +874,7 @@ class DeviceHandle:
         match _libusb.libusb_check_connected(byref(self)):
             case int(_libusb.LIBUSB_SUCCESS):           return True
             case int(_libusb.LIBUSB_ERROR_NO_DEVICE):   return False
-            case err:                                   raise USBError(err)
+            case err:                                   _catch(err)
 
 
     def cancel_all(self):
@@ -1798,8 +1826,12 @@ __all__ = [
     'RequestDirection',
     'RequestType',
     'RequestRecipient',
-    'USBError',
-    'USBTransferError',
+    'AccessError',
+    'NoDeviceError',
+    'NotFoundError',
+    'ResourceBusyError',
+    'BufferOverflowError',
+    'PipeError',
     'EndpointDirection',
     'EndpointType',
     'Endpoint',
