@@ -1,6 +1,7 @@
 from abc import ABCMeta
 from contextlib import contextmanager, asynccontextmanager
-from ctypes import POINTER, addressof, byref, c_ubyte, c_void_p, pointer
+from ctypes import POINTER, addressof, byref, c_int, c_ubyte, c_void_p, pointer
+from dataclasses import dataclass
 from enum import Enum, IntEnum, Flag, auto
 from functools import partial, wraps
 from itertools import takewhile
@@ -230,35 +231,40 @@ class PipeError(BrokenPipeError):
 import errno
 _errmap = {
     _libusb.LIBUSB_ERROR_IO: (OSError, errno.EIO),
-    #_libusb.LIBUSB_ERROR_INVALID_PARAM: errno.EINVAL,
+    #_libusb.LIBUSB_ERROR_INVALID_PARAM: (OSError, errno.EINVAL),
     _libusb.LIBUSB_ERROR_INVALID_PARAM: (ValueError,),
     _libusb.LIBUSB_ERROR_ACCESS: (AccessError, errno.EACCES),
     _libusb.LIBUSB_ERROR_NO_DEVICE: (NoDeviceError, errno.ENODEV),
     _libusb.LIBUSB_ERROR_NOT_FOUND: (NotFoundError, errno.ENOENT),
     _libusb.LIBUSB_ERROR_BUSY: (ResourceBusyError, errno.EBUSY),
     _libusb.LIBUSB_ERROR_TIMEOUT: (TimeoutError, errno.ETIMEDOUT),
-    #_libusb.LIBUSB_ERROR_OVERFLOW: errno.EOVERFLOW,
+    #_libusb.LIBUSB_ERROR_OVERFLOW: (OSError, errno.EOVERFLOW),
     _libusb.LIBUSB_ERROR_OVERFLOW: (BufferOverflowError,),
     _libusb.LIBUSB_ERROR_PIPE: (PipeError, errno.EPIPE),
     _libusb.LIBUSB_ERROR_INTERRUPTED: (InterruptedError, errno.EINTR),
-    #_libusb.LIBUSB_ERROR_NO_MEM: errno.ENOMEM,
+    #_libusb.LIBUSB_ERROR_NO_MEM: (OSError, errno.ENOMEM),
     _libusb.LIBUSB_ERROR_NO_MEM: (MemoryError,),
-    #_libusb.LIBUSB_ERROR_NOT_SUPPORTED: errno.EOPNOTSUPP,
+    #_libusb.LIBUSB_ERROR_NOT_SUPPORTED: (OSError, errno.EOPNOTSUPP),
     _libusb.LIBUSB_ERROR_NOT_SUPPORTED: (NotImplementedError,),
-    #_libusb.LIBUSB_ERROR_OTHER: errno.EFAULT
+    #_libusb.LIBUSB_ERROR_OTHER: (OSError, errno.EFAULT)
     _libusb.LIBUSB_ERROR_OTHER: (RuntimeError,)
 }
 
-# Used to map and raise errors encountered from libusb.
-def _catch(e):
-    if e < 0:
-        msg = _libusb.libusb_strerror(e).decode('utf8')
+# Used to map and message errors encountered from libusb.
+def _error(e, message = None, /, *args, **kwargs):
+    if not message:
+        message = _libusb.libusb_strerror(e).decode('utf8')
 
-        if e in _errmap:
-            errtype, *errargs = _errmap[e]
-            raise errtype(*errargs, msg)
-        else:
-            raise RuntimeError(msg)
+    if e in _errmap:
+        errtype, *errargs = _errmap[e]
+        return errtype(*errargs, message)
+    else:
+        return RuntimeError(message)
+
+# Catch and map errors from libusb.
+def _catch(e, message = None):
+    if e < 0:
+        raise _error(e, message)
     else:
         return e
 
@@ -405,215 +411,6 @@ class Configuration(ImmutableStructProxy):
 
 
 
-#class _ConfigurationListMeta(type):
-#    """
-#    A scoped-singleton meta that checks if the device-to-bind already has
-#    a bound ConfigurationList, and returns it or creates one.
-#    """
-#
-#    def __call__(self, device):
-#        if hasattr(device, '_configs'):
-#            return device._configs
-#        else:
-#            return super().__call__(device)
-#
-#class ConfigurationList(metaclass=_ConfigurationListMeta):
-#    """A sequence containing Configurations for the bound Device instance."""
-#
-#    __slots__ = ('__weakref__', '_device', '_configs')
-#
-#    @staticmethod
-#    def _check_device(method):
-#        """A wrapper that raises an error if the device is no longer valid."""
-#        @wraps(method)
-#        def wrapper(self, /, *args, **kwargs):
-#            if self._device:
-#                return method(self, *args, **kwargs)
-#            else:
-#                raise RuntimeError("invalid device or context")
-#        return wrapper
-#
-#    def __init__(self, device):
-#        self._device = device
-#
-#        def config(index):
-#            config_ptr = POINTER(_libusb.struct_libusb_config_descriptor)()
-#            _catch( _libusb.libusb_get_config_descriptor(device._obj, index,
-#                                                         byref(config_ptr)) )
-#            return Configuration(config_ptr, device.speed)
-#
-#        self._configs = tuple( config(i) for i in range(0, device._contents.bNumConfigurations) )
-#
-#    #@_check_device
-#    def __len__(self):
-#        """Return len(self). Equivalent to bNumConfigurations."""
-#        #return self._device._contents.bNumConfigurations
-#        return len(self._configs)
-#
-#    def __bool__(self):
-#        """
-#        Return bool(self).
-#        True if the context is valid and the device has one or more
-#        configurations.
-#        """
-#
-#        return bool(self._device) and len(self) > 0
-#
-#    #@_check_device
-#    def __getitem__(self, key):
-#        if isinstance(key, slice):
-#            return [self[ii] for ii in range(*key.indices(len(self)))]
-#
-#        elif isinstance(key, int):
-#            if key < 0:
-#                key = len(self) - key
-#
-#            if not 0 <= key < len(self):
-#                raise IndexError("ConfigurationList index out of range")
-#
-#            ## Get the config descriptor.
-#            #config_ptr = POINTER(_libusb.struct_libusb_config_descriptor)()
-#            #_catch( _libusb.libusb_get_config_descriptor(self._device._obj, key, byref(config_ptr)) )
-#
-#            ## Create a Configuration instance from the descriptor.
-#            #return Configuration(config_ptr, self._device)
-#
-#            return self._configs[key]
-#
-#        else:
-#            raise TypeError(f"ConfigurationList indices must be integers or slices, not {type(key).__name__}")
-#
-#    def __iter__(self):
-#        return (self[i] for i in range(0, len(self)))
-#
-#    def __contains__(self, value):
-#        for i in self:
-#            if i == value:
-#                return True
-#        else:
-#            return False
-#
-#    def __repr__(self):
-#        return f"{type(self).__name__}({repr(self._device)})"
-#
-#    #@_check_device
-#    def by_value(self, value: int):
-#        """
-#        Get a Configuration for the bound Device by its bConfigurationValue.
-#        Returns None if no matching Configuration exists.
-#        """
-#
-#        ## Get the config descriptor.
-#        #config_ptr = POINTER(_libusb.struct_libusb_config_descriptor)()
-#        #_catch( _libusb.libusb_get_config_descriptor_by_value(
-#        #    self._device._obj, value, byref(config_ptr)) )
-#
-#        ## Create a Configuration instance from the descriptor.
-#        #return Configuration(config_ptr, self._device)
-#
-#        for config in self:
-#            if config.bConfigurationValue == value:
-#                return config
-#
-#    @_check_device
-#    def get_active(self):
-#        """Get the active Configuration for the Device."""
-#
-#        # Get the config descriptor, obtain the bConfigurationValue,
-#        # and free the descriptor.
-#        config_ptr = POINTER(_libusb.struct_libusb_config_descriptor)()
-#        _catch( _libusb.libusb_get_active_config_descriptor(
-#            self._device._obj, byref(config_ptr)) )
-#        value = config_ptr.contents.bConfigurationValue
-#        _libusb.libusb_free_config_descriptor(config_ptr)
-#
-#        # Create a Configuration instance from the descriptor.
-#        #return Configuration(config_ptr, self._device)
-#
-#        return self.by_value(value)
-
-
-
-# This is basically a lightweight implementation of WeakSet with some extra
-# event logic. We really just need a collection of weakrefs with an iteration
-# guard plus event logic.
-#class _NotifyingWeakCollection:
-#    def __init__(self):
-#        self._data = set()
-#        self._iterating = set()
-#        self._pending_removals = []
-#        self._empty = asyncio.Event()
-#        self._empty.set()
-#
-#        def _remove(item, selfref = ref(self)):
-#            self = selfref()
-#            if self is not None:
-#                if self._iterating:
-#                    self._pending_removals.append(item)
-#                else:
-#                    self._data.discard(item)
-#                    if not self._data:
-#                        self._empty.set()
-#
-#        self._remove = _remove
-#
-#    def _commit_removals(self):
-#        pop = self._pending_removals.pop
-#        data = self._data
-#        event = self._empty
-#
-#        while True:
-#            try:
-#                data.discard(pop(0))
-#            except IndexError:
-#                return
-#            finally:
-#                if not data:
-#                    event.set()
-#
-#    def __contains__(self, item):
-#        try:
-#            return ref(item) in self._data
-#        except TypeError:
-#            return False
-#
-#    def __iter__(self):
-#        guard = object()
-#        self._iterating.add(guard)
-#        try:
-#            for itemref in self._data:
-#                item = itemref()
-#                if item is not None:
-#                    yield item
-#        finally:
-#            self._iterating.remove(guard)
-#            if not self._iterating:
-#                self._commit_removals()
-#
-#    def __len__(self):
-#        return len(self._data) - len(self._pending_removals)
-#
-#    def add(self, item):
-#        if self._pending_removals:
-#            self._commit_removals()
-#        self._data.add(ref(item, self._remove))
-#        self._empty.clear()
-#
-#    def remove(self, item):
-#        if self._pending_removals:
-#            self._commit_removals()
-#        self._data.remove(ref(item))
-#        if not self._data:
-#            self._empty.set()
-#
-#    def is_empty(self):
-#        return self._empty.is_set()
-#
-#    async def wait_empty(self):
-#        await self._empty.wait()
-
-
-
 class _PendingCollection:
     """Used to keep track of pending transfers and prevent garbage collection."""
 
@@ -717,27 +514,115 @@ class DeviceHandle:
         return close
 
 
-    def control_transfer(self, bmRequestType: int, bRequest: int, wValue: int, wIndex: int, data: collections.abc.Buffer | int | None, timeout: int = 0) -> bytes:
+    def control_transfer(self, bmRequestType: int, bRequest: int, wValue: int,
+                         wIndex: int, buffer: collections.abc.Buffer | int,
+                         timeout: int = 0, copy: bool = True) -> bytes:
         """
-        control_transfer(bmRequestType, bRequest, wValue, wIndex, [ data | length_of_zero_buffer ], timeout)
+        control_transfer(bmRequestType, bRequest, wValue, wIndex,
+                         data_or_length, timeout)
+        control_transfer(bmRequestType, bRequest, wValue, wIndex,
+                         writeable_buffer, timeout, False)
 
         Send a control transfer, and block until timeout or completion.
+
+        Returns the data successfully transferred. This may be less than the
+        original buffer size (in libusb terms, `len(bytes) == actual_length`).
+
+        If copy is True (the default), the data from the provided buffer
+        will be copied into a new buffer for transfer, without modifying the
+        original buffer. Otherwise, the underlying memory address of the
+        provided buffer will be passed to libusb, and any received data will
+        be written into it.
+
+        If the transfer timed out, a TimeoutError will be raised. In such
+        case, it is not possible to determine the amount of data that did
+        successfully transfer due to a limitation of libusb. If this is
+        important, consider using no timeout, or submit a Transfer object.
+
+        If the transfer size was larger than the operating system and/or
+        hardware can support, a ValueError will be raised.
         """
 
-        if data is None or isinstance(data, int):
-            buffer = (c_ubyte * (data or 0))()
+        if buffer is None or isinstance(buffer, int):
+            buffer = (c_ubyte * (buffer or 0))()
         else:
-            with memoryview(data) as view:
-                buffer = (c_ubyte * view.nbytes).from_buffer_copy(view)
+            with memoryview(buffer) as view:
+                if copy:
+                    buffer = (c_ubyte * view.nbytes).from_buffer_copy(view)
+                else:
+                    buffer = (c_ubyte * view.nbytes).from_buffer(view)
 
-        result = _libusb.libusb_control_transfer(self._obj, bmRequestType,
-                                                 bRequest, wValue, wIndex,
-                                                 buffer, len(buffer), timeout)
+        result = _libusb.libusb_control_transfer(self._obj,
+                                                 bmRequestType, bRequest,
+                                                 wValue, wIndex, buffer,
+                                                 len(buffer), timeout)
 
-        if result < 0:
-            _catch(result)
+        # Perform special case error mapping.
+        match result:
+            case _libusb.LIBUSB_ERROR_PIPE:
+                raise _error(result, "Unsupported control request")
+            case _libusb.LIBUSB_ERROR_INVALID_PARAM:
+                raise _error(result, "Transfer size too large")
+            case _:
+                _catch(result)
 
-        return bytes(buffer), result
+        return bytes(buffer)[:result]
+
+    def bulk_transfer(self, endpoint: Endpoint | int,
+                      buffer: collections.abc.Buffer | int,
+                      timeout: int = 0, copy: bool = True) -> bytes:
+        """
+        bulk_transfer(endpoint, data_or_length, timeout)
+        bulk_transfer(endpoint, writable_buffer, timeout, False)
+
+        Send a bulk transfer, and block until timeout or completion.
+
+        Returns the data successfully transferred. This may be less than the
+        original buffer size (in libusb terms, `len(bytes) == actual_length`).
+
+        If copy is True (the default), the data from the provided buffer
+        will be copied into a new buffer for transfer, without modifying the
+        original buffer. Otherwise, the underlying memory address of the
+        provided buffer will be passed to libusb, and any received data will
+        be written into it.
+
+        If the transfer timed out, a TimeoutError will be raised, of which
+        the `data` attribute will contain the successfully transfered data.
+
+        If the transfer size was larger than the operating system and/or
+        hardware can support, a ValueError will be raised.
+        """
+
+        if isinstance(endpoint, Endpoint):
+            endpoint = int(endpoint)
+
+        if buffer is None or isinstance(buffer, int):
+            buffer = (c_ubyte * (buffer or 0))()
+        else:
+            with memoryview(buffer) as view:
+                if copy:
+                    buffer = (c_ubyte * view.nbytes).from_buffer_copy(view)
+                else:
+                    buffer = (c_ubyte * view.nbytes).from_buffer(view)
+
+        transferred = c_int(0)
+        result = _libusb.libusb_bulk_transfer(self._obj, endpoint, buffer,
+                                              len(buffer), transferred, timeout)
+
+        # Perform special case error mapping.
+        match result:
+            case _libusb.LIBUSB_ERROR_TIMEOUT:
+                error = _error(result)
+                error.data = bytes(buffer)[:transferred.value]
+                raise error
+            case _libusb.LIBUSB_ERROR_PIPE:
+                raise _error(result, "Endpoint halted")
+            case _libusb.LIBUSB_ERROR_INVALID_PARAM:
+                raise _error(result, "Transfer size too large")
+            case _:
+                _catch(result)
+
+        return bytes(buffer)[:transferred.value]
 
 
     def kernel_driver_active(self, interface: Interface | int):
@@ -786,7 +671,7 @@ class DeviceHandle:
         I/O on any of its endpoints.
 
         If auto_detach_kernel_driver is set to True, the kernel driver will
-        be detached if necessary, on failure the detach error is returned.
+        be detached if necessary, on failure the detach error is raised.
         """
 
         if isinstance(interface, Interface):
@@ -1194,6 +1079,7 @@ class TransferType(Enum):
 
 class TransferStatus(Enum):
     """An enum representing the transfer status."""
+
     # These copy the libusb transfer status values to simplify translation.
     COMPLETED = _libusb.LIBUSB_TRANSFER_COMPLETED # 0
     ERROR =     _libusb.LIBUSB_TRANSFER_ERROR     # 1
@@ -1202,6 +1088,8 @@ class TransferStatus(Enum):
     STALL =     _libusb.LIBUSB_TRANSFER_STALL     # 4
     NO_DEVICE = _libusb.LIBUSB_TRANSFER_NO_DEVICE # 5
     OVERFLOW =  _libusb.LIBUSB_TRANSFER_OVERFLOW  # 6
+
+    # We can then just use auto() for our additional values.
     PENDING =   auto()
     NEW =       auto()
     FREED =     auto()
@@ -1226,11 +1114,6 @@ class TransferFlag(Flag):
     #RAISE_OVERFLOW = auto()
 
 
-
-# Each state implies the previous states.
-#_TransferState_NONE = 0
-#_TransferState_SUBMITTED = 1
-#_TransferState_PENDING = 2
 
 class _TransferState(Flag):
     SUBMITTED = auto()
@@ -1259,7 +1142,6 @@ class Transfer:
         assert transfer_ptr, "failed to allocate transfer"
         self._transfer = transfer_ptr.contents
 
-        #self._state = _TransferState_NONE
         self._state = _TransferState(0)
         self._buffer = None
         self._user_callback = None
@@ -1292,7 +1174,6 @@ class Transfer:
             assert self is not None, "failed to obtain reference to self"
 
             # Update state and remove from pending collection.
-            #self._state = _TransferState_SUBMITTED
             self._state &= ~_TransferState.PENDING
             self._dev_handle._pending.pull(self)
 
@@ -1338,7 +1219,6 @@ class Transfer:
         def wrapper(self, *args, **kwargs):
             if not self:
                 raise RuntimeError("operation forbidden on freed Transfer object")
-            #if self._state >= _TransferState_PENDING:
             if _TransferState.PENDING in self._state:
                 raise RuntimeError("operation forbidden on pending Transfer object")
             return func(self, *args, **kwargs)
@@ -1352,7 +1232,6 @@ class Transfer:
         def wrapper(self, *args, **kwargs):
             if not self:
                 raise RuntimeError("operation forbidden on freed Transfer object")
-            #if self._state >= _TransferState_SUBMITTED:
             if _TransferState.SUBMITTED in self._state:
                 raise RuntimeError(f"can't modify {func.__name__} property of submitted Transfer object")
             return func(self, *args, **kwargs)
@@ -1385,7 +1264,6 @@ class Transfer:
 
         # Update the state of the transfer and add it to the collection of
         # pending transfers.
-        #self._state = _TransferState_PENDING
         self._state |= _TransferState.SUBMITTED | _TransferState.PENDING
         self._dev_handle._pending.put(self)
         self._finished.clear()
@@ -1401,7 +1279,6 @@ class Transfer:
         cancelled, simply depending on resolution order.
         """
 
-        #if self._state >= _TransferState_PENDING:
         if _TransferState.PENDING in self._state:
             match _libusb.libusb_cancel_transfer(byref(self._transfer)):
                 case int(_libusb.LIBUSB_SUCCESS):
@@ -1584,10 +1461,8 @@ class Transfer:
 
         if not hasattr(self, '_transfer'):
             return TransferStatus.FREED
-        #elif self._state >= _TransferState_PENDING:
         elif _TransferState.PENDING in self._state:
             return TransferStatus.PENDING
-        #elif self._state < _TransferState_SUBMITTED:
         elif _TransferState.SUBMITTED not in self._state:
             return TransferStatus.NEW
         else:
@@ -1838,7 +1713,6 @@ __all__ = [
     'Interface',
     'Configuration',
     'DeviceHandle',
-    #'ConfigurationList',
     'Speed',
     'Device',
     'TransferBuffer',
