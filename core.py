@@ -11,6 +11,7 @@ from weakref import WeakSet, WeakValueDictionary, finalize, ref
 import asyncio
 import collections.abc
 import select
+import threading
 
 from . import _libusb
 from ._types import ImmutableStructProxyMeta, ImmutableStructProxy
@@ -412,13 +413,17 @@ class Configuration(ImmutableStructProxy):
 
 
 class _PendingCollection:
-    """Used to keep track of pending transfers and prevent garbage collection."""
+    """
+    Used to keep track of pending transfers and prevent garbage collection.
+    Thread safe.
+    """
 
     def __init__(self):
         self._data = set()
         self._done = asyncio.Event()
         self._done.set()
         self._tasks = 0
+        self._lock = threading.Lock()
 
     def __contains__(self, item):
         return item in self._data
@@ -430,17 +435,20 @@ class _PendingCollection:
         return len(self._data)
 
     def put(self, item):
-        self._data.add(item)
-        self._done.clear()
-        self._tasks += 1
+        with self._lock:
+            self._data.add(item)
+            self._done.clear()
+            self._tasks += 1
 
     def pull(self, item):
-        self._data.remove(item)
+        with self._lock:
+            self._data.remove(item)
 
     def task_done(self):
-        self._tasks -= 1
-        if self._tasks == 0:
-            self._done.set()
+        with self._lock:
+            self._tasks -= 1
+            if self._tasks == 0:
+                self._done.set()
 
     def is_done(self):
         return self._done.is_set()
@@ -462,13 +470,15 @@ class DeviceHandle:
     error if the callback attempts to resubmit them.
     """
 
-    __slots__ = ('__weakref__', '_obj', '_transfers', '_closing', '_pending')
+    __slots__ = ('__weakref__', '_obj', '_transfers', '_closing', '_pending',
+                 '_lock')
 
     def __init__(self):
         self._transfers = WeakSet()
         self._pending = _PendingCollection()
         self._obj = POINTER(_libusb.struct_libusb_device_handle)()
         self._closing = False
+        self._lock = threading.Lock()
 
     def __bool__(self):
         """
@@ -479,7 +489,10 @@ class DeviceHandle:
 
 
     def _open(self, device_obj):
-        """Open this DeviceHandle. To be called by Device.open()."""
+        """
+        Open this DeviceHandle. To be called by Device.open().
+        Calling this from user code is NOT supported.
+        """
 
         # Open the underlying libusb_device_handle.
         _catch( _libusb.libusb_open(device_obj, self._obj) )
@@ -487,15 +500,22 @@ class DeviceHandle:
         # The function used to close the device handle, to be passed back
         # to the Device.open() context manager.
         async def close():
-            # Prevent transfers callbacks (and others) from calling submit.
-            self._closing = True
+            with self._lock and self._pending._lock:
+                # Prevent transfers from registering or submitting.
+                self._closing = True
 
-            # Cancel pending transfers. Relying on this behavior is
-            # discouraged.
-            if self._pending:
-                warn(RuntimeWarning("DeviceHandle instance closed on pending transfers; transfers will be cancelled"))
-                for transfer in self._pending:
-                    transfer.cancel()
+                # Cancel pending transfers. Relying on this behavior is
+                # discouraged.
+                if self._pending:
+                    warn(RuntimeWarning("DeviceHandle instance closed on pending transfers; transfers will be cancelled"))
+                    for transfer in self._pending:
+                        try:
+                            transfer.cancel()
+                        except err:
+                            # Errors from transfer.cancel probably won't
+                            # break anything, and it's more important that
+                            # we continue.
+                            warn(RuntimeWarning(err))
 
             # Ensure callbacks have run.
             await self._pending.wait()
@@ -512,6 +532,19 @@ class DeviceHandle:
             del self._obj
 
         return close
+
+
+    def _register_transfer(self, transfer):
+        with self._lock:
+            if not self:
+                raise RuntimeError("cannot register transfer to closed DeviceHandle")
+
+            self._transfers.add(transfer)
+
+
+    def is_closing(self) -> bool:
+        """True if this DeviceHandle is closed or in the process of closing."""
+        return self._closing
 
 
     def control_transfer(self, bmRequestType: int, bRequest: int, wValue: int,
@@ -764,8 +797,10 @@ class DeviceHandle:
 
     def cancel_all(self):
         """Cancel all registered transfers."""
-        for transfer in self._transfers:
-            transfer.cancel()
+
+        with self._lock:
+            for transfer in self._transfers:
+                transfer.cancel()
 
     def is_clear(self) -> bool:
         """True if there are no pending transfers for this handle."""
@@ -1008,15 +1043,18 @@ class TransferBuffer:
             raise TypeError("data must be a buffer or int")
 
         self._views = WeakValueDictionary()
-        self._lock = None
+        self._lock = threading.Lock()
 
     def __buffer__(self, flags):
-        if self._lock:
-            raise ValueError("operation forbidden on locked TransferBuffer object")
+        if not self._lock.acquire(False):
+            raise RuntimeError("operation forbidden on locked TransferBuffer object")
 
-        view = memoryview(self._buffer)
-        self._views[id(view)] = view
-        return view
+        try:
+            view = memoryview(self._buffer)
+            self._views[id(view)] = view
+            return view
+        finally:
+            self._lock.release()
 
     def __release_buffer__(self, view):
         del self._views[id(view)]
@@ -1029,10 +1067,13 @@ class TransferBuffer:
             return self._buffer[key].to_bytes()
 
     def __setitem__(self, key, value):
-        if self._lock:
-            raise ValueError("operation forbidden on locked TransferBuffer object")
+        if not self._lock.acquire(False):
+            raise RuntimeError("operation forbidden on locked TransferBuffer object")
 
-        self._buffer[key] = value
+        try:
+            self._buffer[key] = value
+        finally:
+            self._lock.release()
 
     def __iter__(self):
         for i in self._buffer:
@@ -1053,17 +1094,13 @@ class TransferBuffer:
         return f"TransferBuffer({repr(bytes(self._buffer))})"
 
     def _acquire(self):
-        if self._views or self._lock:
-            raise BufferError("existing exports of data: object cannot be acquired")
+        if self._views or not self._lock.acquire(False):
+            raise RuntimeError("existing exports of data: object cannot be acquired")
 
-        self._lock = object()
-        return self._lock
+        return self._buffer
 
-    def _release(self, view):
-        if view is not self._lock:
-            raise ValueError("cannot release lock")
-
-        self._lock = None
+    def _release(self):
+        self._lock.release()
 
 
 
@@ -1105,13 +1142,6 @@ class TransferFlag(Flag):
     """
 
     SHORT_NOT_OK = auto()
-    #FREE_TRANSFER = auto()
-    #RAISE_ERROR = auto()
-    #RAISE_TIMED_OUT = auto()
-    #RAISE_CANCELLED = auto()
-    #RAISE_STALL = auto()
-    #RAISE_NO_DEVICE = auto()
-    #RAISE_OVERFLOW = auto()
 
 
 
@@ -1125,6 +1155,9 @@ class Transfer:
     """
     The base class for asynchronous USB communication.
 
+    Creating, modifying, and submitting transfers is thread safe. Callbacks
+    will be executed from the Context's event loop thread.
+
     Transfer instances are freed when the DeviceHandle they were created
     from closes (or when garbage collected). Freed transfers cannot be
     resubmitted or otherwise modified. Most properties are no longer
@@ -1132,16 +1165,22 @@ class Transfer:
     of status, which becomes TransferStatus.FREED.
     """
 
-    __slots__ = ('__weakref__', '_buffer', '_buffer_lock', '_dev_handle',
-                 '_finished', '_flags', '_free_obj', '_state', '_transfer',
-                 '_user_callback')
+    __slots__ = ('__weakref__', '_buffer', '_dev_handle', '_finished', '_flags',
+                 '_free_obj', '_lock', '_state', '_transfer', '_user_callback')
 
     def __init__(self, dev_handle: DeviceHandle, /, iso_packets: int = 0):
         # Allocate a transfer.
         transfer_ptr = _libusb.libusb_alloc_transfer(iso_packets)
-        assert transfer_ptr, "failed to allocate transfer"
-        self._transfer = transfer_ptr.contents
+        if not transfer_ptr:
+            raise RuntimeError("failed to allocate transfer")
 
+        # Create a finalizer to free the transfer on garbage collect
+        # or whenever freed explicitly.
+        self._free_obj = finalize(self, _libusb.libusb_free_transfer,
+                                  transfer_ptr)
+
+        self._lock = threading.Lock()
+        self._transfer = transfer_ptr.contents
         self._state = _TransferState(0)
         self._buffer = None
         self._user_callback = None
@@ -1149,11 +1188,6 @@ class Transfer:
 
         self._finished = asyncio.Event()
         self._finished.set()
-
-        # Set and register self to the DeviceHandle.
-        self._dev_handle = dev_handle
-        self._transfer.dev_handle = dev_handle._obj
-        dev_handle._transfers.add(self)
 
         # The function that executes the user callback and marks the transfer
         # as finished. The `self` value is taken as an argument to prevent the
@@ -1166,7 +1200,8 @@ class Transfer:
             if self._user_callback is not None:
                 self._user_callback(self)
 
-        # The underlying callback invoked by libusb.
+        # The underlying callback invoked by libusb. This will be executed
+        # from the Context's event loop thread.
         @_libusb.libusb_transfer_cb_fn
         def callback(_, selfref = ref(self)):
             # This prevents the finalizer from keeping the instance alive.
@@ -1178,19 +1213,23 @@ class Transfer:
             self._dev_handle._pending.pull(self)
 
             # Release the lock held on the buffer.
-            if hasattr(self, '_buffer_lock'):
-                self._buffer._release(self._buffer_lock)
-                del self._buffer_lock
+            if self._buffer is not None:
+                self._transfer.buffer = None
+                self._transfer.length = 0
+                self._buffer._release()
 
             # Schedule the user callback and finishing logic.
             asyncio.get_running_loop().call_soon(finish, self)
 
         self._transfer.callback = callback
 
-        # Create a finalizer to free the transfer on garbage collect
-        # or whenever freed explicitly.
-        self._free_obj = finalize(self, _libusb.libusb_free_transfer,
-                                  transfer_ptr)
+        # Set and register self to the DeviceHandle. This should be at the
+        # end in case the DeviceHandle closed during init to ensure we don't
+        # have partially populated transfers attached to closed handles.
+        # Alternatively, we could acquire the lock across the init block.
+        self._dev_handle = dev_handle
+        self._transfer.dev_handle = dev_handle._obj
+        dev_handle._register_transfer(self)
 
 
     def __bool__(self):
@@ -1217,11 +1256,12 @@ class Transfer:
 
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            if not self:
-                raise RuntimeError("operation forbidden on freed Transfer object")
-            if _TransferState.PENDING in self._state:
-                raise RuntimeError("operation forbidden on pending Transfer object")
-            return func(self, *args, **kwargs)
+            with self._lock:
+                if not self:
+                    raise RuntimeError("operation forbidden on freed Transfer object")
+                if _TransferState.PENDING in self._state:
+                    raise RuntimeError("operation forbidden on pending Transfer object")
+                return func(self, *args, **kwargs)
         return wrapper
 
     @staticmethod
@@ -1230,11 +1270,12 @@ class Transfer:
 
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            if not self:
-                raise RuntimeError("operation forbidden on freed Transfer object")
-            if _TransferState.SUBMITTED in self._state:
-                raise RuntimeError(f"can't modify {func.__name__} property of submitted Transfer object")
-            return func(self, *args, **kwargs)
+            with self._lock:
+                if not self:
+                    raise RuntimeError("operation forbidden on freed Transfer object")
+                if _TransferState.SUBMITTED in self._state:
+                    raise RuntimeError(f"can't modify {func.__name__} property of submitted Transfer object")
+                return func(self, *args, **kwargs)
         return wrapper
 
 
@@ -1245,28 +1286,30 @@ class Transfer:
         Cannot be called on a pending transfer.
         """
 
-        if not self._dev_handle:
-            raise RuntimeError("cannot submit transfer to closed DeviceHandle")
+        with self._dev_handle._lock:
+            if not self._dev_handle:
+                raise RuntimeError("cannot submit transfer to closed DeviceHandle")
 
-        # Set the SHORT_NOT_OK flag of the underlying transfer.
-        if TransferFlag.SHORT_NOT_OK in self._flags:
-            self._transfer.flags |= _libusb.LIBUSB_TRANSFER_SHORT_NOT_OK
-        else:
-            self._transfer.flags &= ~_libusb.LIBUSB_TRANSFER_SHORT_NOT_OK
+            # Set the SHORT_NOT_OK flag of the underlying transfer.
+            if TransferFlag.SHORT_NOT_OK in self._flags:
+                self._transfer.flags |= _libusb.LIBUSB_TRANSFER_SHORT_NOT_OK
+            else:
+                self._transfer.flags &= ~_libusb.LIBUSB_TRANSFER_SHORT_NOT_OK
 
-        # Reset the transfer status and submit.
-        self._transfer.status = 0
-        _catch( _libusb.libusb_submit_transfer(byref(self._transfer)) )
+            # Acquire a lock on the buffer.
+            if self._buffer is not None:
+                self._transfer.buffer = self._buffer._acquire()
+                self._transfer.length = len(self._buffer)
 
-        # Acquire a lock on the buffer.
-        if self._buffer is not None:
-            self._buffer_lock = self._buffer._acquire()
+            # Reset the transfer status and submit.
+            self._transfer.status = 0
+            _catch( _libusb.libusb_submit_transfer(byref(self._transfer)) )
 
-        # Update the state of the transfer and add it to the collection of
-        # pending transfers.
-        self._state |= _TransferState.SUBMITTED | _TransferState.PENDING
-        self._dev_handle._pending.put(self)
-        self._finished.clear()
+            # Update the state of the transfer and add it to the collection of
+            # pending transfers.
+            self._state |= _TransferState.SUBMITTED | _TransferState.PENDING
+            self._dev_handle._pending.put(self)
+            self._finished.clear()
 
 
     @_none_if_freed
@@ -1277,6 +1320,8 @@ class Transfer:
         It is possible for the finished transfer status to evaluate to a
         value other than CANCELLED (e.g. TIMED_OUT) even if explicitly
         cancelled, simply depending on resolution order.
+
+        Thread-safe.
         """
 
         if _TransferState.PENDING in self._state:
@@ -1286,7 +1331,7 @@ class Transfer:
                 case int(_libusb.LIBUSB_ERROR_NOT_FOUND):
                     pass
                 case err:
-                    raise USBError(err)
+                    raise _error(err)
 
 
     async def wait_finished(self):
@@ -1294,21 +1339,23 @@ class Transfer:
         await self._finished.wait()
 
 
-    @_acquire
     def _free(self):
-        del self._transfer
-        del self._buffer
-        del self._flags
-        del self._user_callback
-        del self._state
+        with self._lock:
+            assert _TransferState.PENDING not in self._state, "free pending transfer"
 
-        # Call the finalizer to free the underlying transfer.
-        self._free_obj()
-        del self._free_obj
+            del self._transfer
+            del self._buffer
+            del self._flags
+            del self._user_callback
+            del self._state
 
-        # Unregister from the device handle.
-        #self._dev_handle._transfers.discard(self)
-        del self._dev_handle
+            # Call the finalizer to free the underlying transfer.
+            self._free_obj()
+            del self._free_obj
+
+            # Unregister from the device handle.
+            #self._dev_handle._transfers.discard(self)
+            del self._dev_handle
 
 
     @property
@@ -1431,14 +1478,17 @@ class Transfer:
     @buffer.setter
     @_acquire
     def buffer(self, value: TransferBuffer):
-        if value is None:
-            self._transfer._buffer = None
-            self._transfer.length = 0
-        else:
-            if not isinstance(value, TransferBuffer):
-                raise TypeError("buffer must be a TransferBuffer object or None")
-            self._transfer.buffer = value._buffer
-            self._transfer.length = len(value)
+        #if value is None:
+        #    self._transfer._buffer = None
+        #    self._transfer.length = 0
+        #else:
+        #    if not isinstance(value, TransferBuffer):
+        #        raise TypeError("buffer must be a TransferBuffer object or None")
+        #    self._transfer.buffer = value._buffer
+        #    self._transfer.length = len(value)
+
+        if not isinstance(value, TransferBuffer) and value is not None:
+            raise TypeError("buffer must be a TransferBuffer object or None")
 
         self._buffer = value
 
