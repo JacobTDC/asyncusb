@@ -1084,7 +1084,7 @@ class TransferBuffer(collections.abc.MutableSequence):
 
 
 class ControlTransferBuffer(TransferBuffer):
-    __slots__ = ('_buffer', '_lock', '_views', '_acquired')
+    __slots__ = ()
     _struct = Struct('<BBHHH')
 
     def __init__(self, bmRequestType: int = 0, bRequestCode: int = 0, wValue: int = 0, wIndex: int = 0, data: int | collections.abc.Buffer = None):
