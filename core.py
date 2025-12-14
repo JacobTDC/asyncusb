@@ -1450,7 +1450,7 @@ class Transfer:
                     raise _error(err)
 
 
-    async def wait_finished(self):
+    async def wait(self):
         """Wait for the transfer to complete or cancel."""
         await self._finished.wait()
 
