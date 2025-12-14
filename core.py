@@ -5,11 +5,13 @@ from dataclasses import dataclass
 from enum import Enum, IntEnum, Flag, auto
 from functools import partial, wraps
 from itertools import takewhile
+from struct import Struct
 from typing import Awaitable, Callable, Generator
 from warnings import warn
 from weakref import WeakSet, WeakValueDictionary, finalize, ref
 import asyncio
 import collections.abc
+import errno
 import select
 import threading
 
@@ -59,6 +61,7 @@ class USBClass(IntEnum):
 
 
 
+# TODO: remove experimental RequestType classes or move to seperate submodule
 class RequestTypeFlags:
     __slots__ = ()
 
@@ -104,24 +107,6 @@ class RequestTypeUnion(RequestTypeFlags):
     def __init__(self, value):
         self._value = value
 
-    #def __or__(self, other):
-    #    if isinstance(other, RequestDirection):
-    #        value = self._value \
-    #              & 0b01111111 \
-    #              | other.value
-    #    elif isinstance(other, RequestType):
-    #        value = self._value \
-    #              & 0b10011111 \
-    #              | other.value
-    #    elif isinstance(other, RequestRecipient):
-    #        value = self._value \
-    #              & 0b11100000 \
-    #              | other.value
-    #    else:
-    #        raise TypeError("other must be instance of _RequestTypeFlag")
-
-    #    return RequestTypeUnion(value)
-
     def __eq__(self, other):
         return type(self) is type(other) and self._value == other._value
 
@@ -150,17 +135,6 @@ class RequestTypeUnion(RequestTypeFlags):
     @property
     def recipient(self):
         return RequestRecipient(self._value & 0b00011111)
-
-#class _RequestTypeFlag(RequestTypeFlags, Enum):
-#    __slots__ = ()
-#
-#    def __or__(self, other):
-#        if type(self) is type(other):
-#            return RequestTypeUnion(other.value)
-#        elif isinstance(other, _RequestTypeFlag):
-#            return RequestTypeUnion(self.value | other.value)
-#        else:
-#            raise TypeError("other must be an instance of _RequestTypeFlag")
 
 class RequestDirection(RequestTypeFlags, Enum):
     """The direction bit field for bmRequestType."""
@@ -229,7 +203,6 @@ class PipeError(BrokenPipeError):
     """
     pass
 
-import errno
 _errmap = {
     _libusb.LIBUSB_ERROR_IO: (OSError, errno.EIO),
     #_libusb.LIBUSB_ERROR_INVALID_PARAM: (OSError, errno.EINVAL),
@@ -507,7 +480,7 @@ class DeviceHandle:
                 # Cancel pending transfers. Relying on this behavior is
                 # discouraged.
                 if self._pending:
-                    warn(RuntimeWarning("DeviceHandle instance closed on pending transfers; transfers will be cancelled"))
+                    warn(UserWarning("DeviceHandle instance closed on pending transfers; transfers will be cancelled"))
                     for transfer in self._pending:
                         try:
                             transfer.cancel()
@@ -517,15 +490,18 @@ class DeviceHandle:
                             # we continue.
                             warn(RuntimeWarning(err))
 
-            # Ensure callbacks have run.
+            # Ensure callbacks have run. We must ensure not to hold a lock
+            # across this statement, or execution may halt.
             await self._pending.wait()
 
-            # Free all attached transfers.
+            # Free all attached transfers. No need to reacquire the lock,
+            # as self._closing should prevent any operations, anyway.
             while self._transfers:
                 try:
                     self._transfers.pop()._free()
                 except KeyError:
-                    pass
+                    # This could occur if GC released objects.
+                    break
 
             # Close the handle.
             _libusb.libusb_close(self._obj)
@@ -1028,79 +1004,214 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
 
 
 
-class TransferBuffer:
-    """A Buffer subclass for use with Transfer objects."""
+class TransferBuffer(collections.abc.MutableSequence):
+    """
+    A bytearray-like class for use with Transfer objects. Enforces thread
+    and transit safety. Cannot be modified while in-transit.
+    """
 
-    __slots__ = ('_buffer', '_views', '_lock')
+    __slots__ = ('_buffer', '_views', '_lock', '_acquired')
 
     def __init__(self, data: int | collections.abc.Buffer = 0, /):
-        if isinstance(data, collections.abc.Buffer):
-            with memoryview(data) as view:
-                self._buffer = (c_ubyte * view.nbytes).from_buffer_copy(view)
-        elif isinstance(data, int):
-            self._buffer = (c_ubyte * data)()
-        else:
-            raise TypeError("data must be a buffer or int")
-
+        self._buffer = bytearray(data)
         self._views = WeakValueDictionary()
         self._lock = threading.Lock()
+        self._acquired = False
 
-    def __buffer__(self, flags):
-        if not self._lock.acquire(False):
-            raise RuntimeError("operation forbidden on locked TransferBuffer object")
+    def __buffer__(self, flags, /):
+        with self._lock:
+            if self._acquired:
+                raise RuntimeError("operation forbidden on locked buffer")
 
-        try:
             view = memoryview(self._buffer)
             self._views[id(view)] = view
             return view
-        finally:
-            self._lock.release()
 
-    def __release_buffer__(self, view):
-        del self._views[id(view)]
+    def __release_buffer__(self, view, /):
         view.release()
+        with self._lock:
+            del self._views[id(view)]
 
-    def __getitem__(self, key):
-        if isinstance(key, slice):
-            return bytes(self._buffer[key])
-        else:
-            return self._buffer[key].to_bytes()
+    def _acquire(self, /):
+        with self._lock:
+            if self._views or self._acquired:
+                raise RuntimeError("existing exports of data: object cannot be acquired")
 
-    def __setitem__(self, key, value):
-        if not self._lock.acquire(False):
-            raise RuntimeError("operation forbidden on locked TransferBuffer object")
+            self._acquired = True
+            return (len(self._buffer),
+                    pointer(c_ubyte.from_buffer(self._buffer)))
 
-        try:
-            self._buffer[key] = value
-        finally:
-            self._lock.release()
+    def _release(self, /):
+        with self._lock:
+            self._acquired = False
 
-    def __iter__(self):
-        for i in self._buffer:
-            yield i.to_bytes()
+    @staticmethod
+    def _modify(func, /):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            with self._lock:
+                if self._acquired:
+                    raise RuntimeError("cannot modify locked buffer")
+                return func(self, *args, **kwargs)
+        return wrapper
 
-    def __contains__(self, value: bytes | int):
-        if isinstance(value, bytes) and len(value) == 1:
-            value = int.from_bytes(value)
-        elif not isinstance(value, int) or value > 255:
-            return False
+    def __getitem__(self, key, /):
+        return self._buffer[key]
 
-        return value in self._buffer
+    @_modify
+    def __setitem__(self, key, value, /):
+        self._buffer[key] = value
+
+    @_modify
+    def __delitem__(self, key, /):
+        del self._buffer[key]
 
     def __len__(self):
         return len(self._buffer)
 
-    def __repr__(self):
-        return f"TransferBuffer({repr(bytes(self._buffer))})"
+    @_modify
+    def insert(self, index, item, /):
+        self._buffer.insert(index, item)
 
-    def _acquire(self):
-        if self._views or not self._lock.acquire(False):
-            raise RuntimeError("existing exports of data: object cannot be acquired")
+    @_modify
+    def extend(self, iterable_of_ints, /):
+        self._buffer.extend(iterable_of_ints)
 
-        return self._buffer
+    @_modify
+    def clear(self, /):
+        self._buffer.clear()
 
-    def _release(self):
-        self._lock.release()
+
+
+class ControlTransferBuffer(TransferBuffer):
+    __slots__ = ('_buffer', '_lock', '_views', '_acquired')
+    _struct = Struct('<BBHHH')
+
+    def __init__(self, bmRequestType: int = 0, bRequestCode: int = 0, wValue: int = 0, wIndex: int = 0, data: int | collections.abc.Buffer = None):
+        if isinstance(data, int) or data is None:
+            wLength = data or 0
+            self._buffer = bytearray(8 + wLength)
+        else:
+            with memoryview(data) as view:
+                wLength = view.nbytes
+                self._buffer = bytearray(8 + wLength)
+                self._buffer[8:] = view
+
+        self._struct.pack_into(self._buffer, 0, bmRequestType, bRequestCode,
+                               wValue, wIndex, wLength)
+
+        self._views = WeakValueDictionary()
+        self._lock = threading.Lock()
+        self._acquired = False
+
+    def __buffer__(self, flags, /):
+        with self._lock:
+            if self._acquired:
+                raise RuntimeError("operation forbidden on locked buffer")
+
+            view = memoryview(self._buffer)[8:]
+            self._views[id(view)] = view
+            return view
+
+    def _resize(self, /):
+        self._buffer[6:8] = int.to_bytes(len(self._buffer) - 8, length=2,
+                                         byteorder='little', signed=False)
+
+    def _translate(self, key, /):
+        if isinstance(key, slice):
+            start, stop, step = key.indices(len(self))
+            return slice(start + 8, stop + 8, step)
+        elif isinstance(key, int):
+            if -len(self) <= key < len(self):
+                return (key % len(self)) + 8
+            else:
+                raise IndexError("buffer index out of range")
+        else:
+            raise TypeError(f"buffer indices must be integers or slices, not {key.__class__.__name__}")
+
+    def __getitem__(self, key, /):
+        return self._buffer[self._translate(key)]
+
+    @TransferBuffer._modify
+    def __setitem__(self, key, value, /):
+        self._buffer[self._translate(key)] = value
+        self._resize()
+
+    @TransferBuffer._modify
+    def __delitem__(self, key, /):
+        del self._buffer[self._translate(key)]
+        self._resize()
+
+    def __len__(self, /):
+        return len(self._buffer) - 8
+
+    @TransferBuffer._modify
+    def insert(self, index, item, /):
+        self._buffer.insert(index + 8, item)
+        self._resize()
+
+    @TransferBuffer._modify
+    def extend(self, iterable_of_ints, /):
+        self._buffer.extend(iterable_of_ints)
+        self._resize()
+
+    @TransferBuffer._modify
+    def clear(self, /):
+        del self._buffer[8:]
+        self._resize()
+
+    def to_bytes(self, /) -> bytes:
+        """
+        Returns the full byte representation of the underlying buffer,
+        including the setup packet.
+        """
+
+        return bytes(self._buffer)
+
+    @property
+    def bmRequestType(self) -> int:
+        return self._buffer[0]
+
+    @bmRequestType.setter
+    @TransferBuffer._modify
+    def bmRequestType(self, value: int):
+        self._buffer[0] = value
+
+    @property
+    def bRequestCode(self) -> int:
+        return self._buffer[1]
+
+    @bRequestCode.setter
+    @TransferBuffer._modify
+    def bRequestCode(self, value: int):
+        self._buffer[1] = value
+
+    @property
+    def wValue(self) -> int:
+        return int.from_bytes(self._buffer[2:4], byteorder='little',
+                              signed=False)
+
+    @wValue.setter
+    @TransferBuffer._modify
+    def wValue(self, value: int):
+        self._buffer[2:4] = int.to_bytes(value, length=2, byteorder='little',
+                                         signed=False)
+
+    @property
+    def wIndex(self) -> int:
+        return int.from_bytes(self._buffer[4:6], byteorder='little',
+                              signed=False)
+
+    @wIndex.setter
+    @TransferBuffer._modify
+    def wIndex(self, value: int):
+        self._buffer[4:6] = int.to_bytes(value, length=2, byteorder='little',
+                                         signed=False)
+
+    @property
+    def wLength(self) -> int:
+        return int.from_bytes(self._buffer[6:8], byteorder='little',
+                              signed=False)
 
 
 
@@ -1208,15 +1319,15 @@ class Transfer:
             self = selfref()
             assert self is not None, "failed to obtain reference to self"
 
-            # Update state and remove from pending collection.
-            self._state &= ~_TransferState.PENDING
-            self._dev_handle._pending.pull(self)
-
             # Release the lock held on the buffer.
             if self._buffer is not None:
                 self._transfer.buffer = None
                 self._transfer.length = 0
                 self._buffer._release()
+
+            # Update state and remove from pending collection.
+            self._state &= ~_TransferState.PENDING
+            self._dev_handle._pending.pull(self)
 
             # Schedule the user callback and finishing logic.
             asyncio.get_running_loop().call_soon(finish, self)
@@ -1229,7 +1340,11 @@ class Transfer:
         # Alternatively, we could acquire the lock across the init block.
         self._dev_handle = dev_handle
         self._transfer.dev_handle = dev_handle._obj
-        dev_handle._register_transfer(self)
+        try:
+            dev_handle._register_transfer(self)
+        except:
+            self._free()
+            raise
 
 
     def __bool__(self):
@@ -1298,8 +1413,9 @@ class Transfer:
 
             # Acquire a lock on the buffer.
             if self._buffer is not None:
-                self._transfer.buffer = self._buffer._acquire()
-                self._transfer.length = len(self._buffer)
+                length, buffer = self._buffer._acquire()
+                self._transfer.buffer = buffer
+                self._transfer.length = length
 
             # Reset the transfer status and submit.
             self._transfer.status = 0
@@ -1367,9 +1483,9 @@ class Transfer:
         The callback function to be called on transfer completion. The
         function should accept one argument: the Transfer instance.
 
-        Callbacks are executed in the event loop of the DeviceHandle's
-        Context using loop.call_soon(). Uncaught exceptions can be captured
-        in the loop's exception handler (see loop.set_exception_handler()).
+        Callbacks are executed in the Context's event loop using
+        loop.call_soon(). Uncaught exceptions can be captured in the loop's
+        exception handler (see loop.set_exception_handler()).
 
         The callback will execute regardless of the resulting status, even
         if explicitly cancelled.
@@ -1766,6 +1882,7 @@ __all__ = [
     'Speed',
     'Device',
     'TransferBuffer',
+    'ControlTransferBuffer',
     'TransferType',
     'TransferStatus',
     'TransferFlag',
