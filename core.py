@@ -792,15 +792,37 @@ class DeviceHandle:
         """Allocate a new Transfer for this DeviceHandle."""
         return Transfer(self, iso_packets)
 
+    def fill_control_transfer(self, bmRequestType: int = 0,
+                              bRequestCode: int = 0,
+                              wValue: int = 0, wIndex: int = 0,
+                              data: collections.abc.Buffer = None,
+                              callback: Callable = None,
+                              timeout: int = 0) -> 'Transfer':
+        """
+        A helper function to create a new Transfer for this DeviceHandle and
+        populate the required fields for a control transfer.
+        """
+
+        transfer = self.alloc_transfer(0)
+        transfer.type = TransferType.CONTROL
+        transfer.endpoint = 0
+        transfer.callback = callback
+        transfer.timeout = timeout
+
+        transfer.buffer = ControlTransferBuffer(bmRequestType, bRequestCode, 
+                                                wValue, wIndex, data)
+
+        return transfer
+
     def fill_bulk_transfer(self, endpoint: int | Endpoint, buffer = None,
-                           callback: Callable = None, timeout: int = 0, *,
-                           iso_packets: int = 0) -> 'Transfer':
+                           callback: Callable = None,
+                           timeout: int = 0) -> 'Transfer':
         """
         A helper function to create a new Transfer for this DeviceHandle and
         populate the required fields for a bulk transfer.
         """
 
-        transfer = self.alloc_transfer(iso_packets)
+        transfer = self.alloc_transfer(0)
         transfer.type = TransferType.BULK
         transfer.endpoint = endpoint
         transfer.callback = callback
@@ -814,14 +836,14 @@ class DeviceHandle:
         return transfer
 
     def fill_interrupt_transfer(self, endpoint: int | Endpoint, buffer = None,
-                                callback: Callable = None, timeout: int = 0,
-                                *, iso_packets: int = 0) -> 'Transfer':
+                                callback: Callable = None,
+                                timeout: int = 0) -> 'Transfer':
         """
         A helper function to create a new Transfer for this DeviceHandle and
         populate the required fields for an interrupt transfer.
         """
 
-        transfer = self.alloc_transfer(iso_packets)
+        transfer = self.alloc_transfer(0)
         transfer.type = TransferType.INTERRUPT
         transfer.endpoint = endpoint
         transfer.callback = callback
@@ -1012,13 +1034,13 @@ class TransferBuffer(collections.abc.MutableSequence):
 
     __slots__ = ('_buffer', '_views', '_lock', '_acquired')
 
-    def __init__(self, data: int | collections.abc.Buffer = 0, /):
+    def __init__(self, data: int | collections.abc.Buffer = 0):
         self._buffer = bytearray(data)
         self._views = WeakValueDictionary()
         self._lock = threading.Lock()
         self._acquired = False
 
-    def __buffer__(self, flags, /):
+    def __buffer__(self, flags):
         with self._lock:
             if self._acquired:
                 raise RuntimeError("operation forbidden on locked buffer")
@@ -1027,12 +1049,12 @@ class TransferBuffer(collections.abc.MutableSequence):
             self._views[id(view)] = view
             return view
 
-    def __release_buffer__(self, view, /):
+    def __release_buffer__(self, view):
         view.release()
         with self._lock:
             del self._views[id(view)]
 
-    def _acquire(self, /):
+    def _acquire(self):
         with self._lock:
             if self._views or self._acquired:
                 raise RuntimeError("existing exports of data: object cannot be acquired")
@@ -1041,12 +1063,12 @@ class TransferBuffer(collections.abc.MutableSequence):
             return (len(self._buffer),
                     pointer(c_ubyte.from_buffer(self._buffer)))
 
-    def _release(self, /):
+    def _release(self):
         with self._lock:
             self._acquired = False
 
     @staticmethod
-    def _modify(func, /):
+    def _modify(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             with self._lock:
@@ -1055,35 +1077,39 @@ class TransferBuffer(collections.abc.MutableSequence):
                 return func(self, *args, **kwargs)
         return wrapper
 
-    def __getitem__(self, key, /):
+    def __getitem__(self, key):
         return self._buffer[key]
 
     @_modify
-    def __setitem__(self, key, value, /):
+    def __setitem__(self, key, value):
         self._buffer[key] = value
 
     @_modify
-    def __delitem__(self, key, /):
+    def __delitem__(self, key):
         del self._buffer[key]
 
     def __len__(self):
         return len(self._buffer)
 
     @_modify
-    def insert(self, index, item, /):
+    def insert(self, index, item):
         self._buffer.insert(index, item)
 
     @_modify
-    def extend(self, iterable_of_ints, /):
-        self._buffer.extend(iterable_of_ints)
+    def extend(self, iterable):
+        self._buffer.extend(iterable)
 
     @_modify
-    def clear(self, /):
+    def clear(self):
         self._buffer.clear()
 
 
 
 class ControlTransferBuffer(TransferBuffer):
+    """
+    A subclass of TransferBuffer with a control setup packet.
+    """
+
     __slots__ = ()
     _struct = Struct('<BBHHH')
 
@@ -1104,7 +1130,7 @@ class ControlTransferBuffer(TransferBuffer):
         self._lock = threading.Lock()
         self._acquired = False
 
-    def __buffer__(self, flags, /):
+    def __buffer__(self, flags):
         with self._lock:
             if self._acquired:
                 raise RuntimeError("operation forbidden on locked buffer")
@@ -1113,11 +1139,11 @@ class ControlTransferBuffer(TransferBuffer):
             self._views[id(view)] = view
             return view
 
-    def _resize(self, /):
+    def _resize(self):
         self._buffer[6:8] = int.to_bytes(len(self._buffer) - 8, length=2,
                                          byteorder='little', signed=False)
 
-    def _translate(self, key, /):
+    def _translate(self, key):
         if isinstance(key, slice):
             start, stop, step = key.indices(len(self))
             return slice(start + 8, stop + 8, step)
@@ -1129,29 +1155,29 @@ class ControlTransferBuffer(TransferBuffer):
         else:
             raise TypeError(f"buffer indices must be integers or slices, not {key.__class__.__name__}")
 
-    def __getitem__(self, key, /):
+    def __getitem__(self, key):
         return self._buffer[self._translate(key)]
 
     @TransferBuffer._modify
-    def __setitem__(self, key, value, /):
+    def __setitem__(self, key, value):
         self._buffer[self._translate(key)] = value
         self._resize()
 
     @TransferBuffer._modify
-    def __delitem__(self, key, /):
+    def __delitem__(self, key):
         del self._buffer[self._translate(key)]
         self._resize()
 
-    def __len__(self, /):
+    def __len__(self):
         return len(self._buffer) - 8
 
     @TransferBuffer._modify
-    def insert(self, index, item, /):
+    def insert(self, index, item):
         self._buffer.insert(index + 8, item)
         self._resize()
 
     @TransferBuffer._modify
-    def extend(self, iterable_of_ints, /):
+    def extend(self, iterable_of_ints):
         self._buffer.extend(iterable_of_ints)
         self._resize()
 
@@ -1160,13 +1186,21 @@ class ControlTransferBuffer(TransferBuffer):
         del self._buffer[8:]
         self._resize()
 
-    def to_bytes(self, /) -> bytes:
+    def to_bytes(self) -> bytes:
         """
         Returns the full byte representation of the underlying buffer,
-        including the setup packet.
+        including the control setup packet.
         """
 
         return bytes(self._buffer)
+
+    def actual_length(self) -> int:
+        """
+        Returns the actual length of the underlying buffer, including the
+        control setup packet.
+        """
+
+        return len(self._buffer)
 
     @property
     def bmRequestType(self) -> int:
