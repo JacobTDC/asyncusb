@@ -1928,13 +1928,13 @@ class Context:
         p_list = POINTER(POINTER(_libusb.libusb_device))()
         length = _catch( _libusb.libusb_get_device_list(self._obj, p_list) )
 
-        # Cast device pointers into Device class.
-        dev_list = [ Device(dev.contents, self) for dev in p_list[:length] ]
-
-        # Free the device list (and unref the devices, as they have been
-        # referenced by the Device class).
-        _libusb.libusb_free_device_list(p_list, True)
-        return dev_list
+        try:
+            # Cast device pointers into Device class.
+            return [ Device(dev.contents, self) for dev in p_list[:length] ]
+        finally:
+            # Free the device list (and unref the devices, as they have been
+            # referenced by the Device class).
+            _libusb.libusb_free_device_list(p_list, True)
 
 
 
