@@ -1108,6 +1108,21 @@ class TransferBuffer(collections.abc.MutableSequence):
 class ControlTransferBuffer(TransferBuffer):
     """
     A subclass of TransferBuffer with a control setup packet.
+
+    While the control setup packet *is* part of the underlying buffer that
+    is passed to the transfer, the data contained within is only accessible
+    via. the relevant attributes. This is to simplify usage and prevent
+    accidental modification of the setup fields. If you need direct access
+    to the setup packet, you can use a regular TransferBuffer instead.
+
+    Likewise, functions such as len(self) only return the size of the data
+    portion of the buffer. Should you need the actual, full length of the
+    buffer, including the setup packet (for example, to compare to
+    Transfer.transferred to check for short frames), you can get it using
+    actual_length(), but it's also equivalent to len(self) + 8.
+
+    If you need to inspect the full data of the underlying buffer, it can be
+    retrieved as a bytes object using to_bytes().
     """
 
     __slots__ = ()
