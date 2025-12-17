@@ -759,6 +759,29 @@ class DeviceHandle:
         """
         _catch( _libusb.libusb_reset_device(self._obj) )
 
+    def clear_halt(self, endpoint: int | Endpoint):
+        """Clear the halt/stall condition for an endpoint."""
+
+        _catch( _libusb.libusb_clear_halt(self._obj, int(endpoint)) )
+
+    def get_configuration(self) -> int:
+        """
+        Gets the value of the active configuration. Unlike
+        Device.get_active_config, this is a blocking call that makes a
+        request to the device instead of relying on the OS cache.
+
+        Returns 0 if unconfigured.
+        """
+
+        config = c_int()
+        _catch( _libusb.libusb_get_configuration(self._obj, config) )
+        return config.value
+
+    def set_configuration(self, config: int | Configuration):
+        """Sets the active configuration for the device."""
+
+        _catch( _libusb.libusb_set_configuration(self._obj, int(config)) )
+
     def check_connected(self) -> bool:
         """True if the device is still connected, False otherwise."""
 
@@ -1006,15 +1029,26 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
         return self._configs
 
     def get_active_config(self) -> Configuration:
-        """Get the active Configuration for this device."""
+        """
+        Get the active Configuration for this device.
+
+        Returns None if unconfigured.
+        """
+
         if not self:
             raise RuntimeError("invalid context")
 
         # Get the config descriptor, obtain the bConfigurationValue,
         # and free the descriptor.
         config_ptr = POINTER(_libusb.struct_libusb_config_descriptor)()
-        _catch( _libusb.libusb_get_active_config_descriptor(self._obj,
-                                                            byref(config_ptr)) )
+        err = _libusb.libusb_get_active_config_descriptor(self._obj,
+                                                          byref(config_ptr) )
+
+        if err == _libusb.LIBUSB_ERROR_NOT_FOUND:
+            return None
+        else:
+            _catch(err)
+
         value = config_ptr.contents.bConfigurationValue
         _libusb.libusb_free_config_descriptor(config_ptr)
 
