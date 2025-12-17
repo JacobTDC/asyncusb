@@ -1056,6 +1056,27 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
             if config.bConfigurationValue == value:
                 return config
 
+    def get_parent(self) -> 'Device':
+        """Get the parent device."""
+
+        if not self:
+            raise RuntimeError("invalid context")
+
+        # Hold the device list.
+        p_list = POINTER(POINTER(_libusb.libusb_device))()
+        _catch( _libusb.libusb_get_device_list(self._context._obj, p_list) )
+
+        try:
+            parent = _libusb.libusb_get_parent(self._obj)
+
+            if parent:
+                return Device(parent.contents, self._context)
+            else:
+                return None
+        finally:
+            # Free the device list.
+            _libusb.libusb_free_device_list(p_list, True)
+
 
 
 class TransferBuffer(collections.abc.MutableSequence):
