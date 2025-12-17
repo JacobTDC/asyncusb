@@ -760,15 +760,13 @@ class DeviceHandle:
         _catch( _libusb.libusb_reset_device(self._obj) )
 
     def check_connected(self) -> bool:
-        """
-        True if the device is still connected, False otherwise. See
-        libusb_check_connected.
-        """
+        """True if the device is still connected, False otherwise."""
 
-        match _libusb.libusb_check_connected(byref(self)):
-            case int(_libusb.LIBUSB_SUCCESS):           return True
-            case int(_libusb.LIBUSB_ERROR_NO_DEVICE):   return False
-            case err:                                   _catch(err)
+        try:
+            self.control_transfer(0x80, 0x00, 0, 0, 2)
+        except NoDeviceError:
+            return False
+        return True
 
 
     def cancel_all(self):
