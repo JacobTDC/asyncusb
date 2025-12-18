@@ -8,7 +8,8 @@ from itertools import takewhile
 from struct import Struct
 from typing import Awaitable, Callable, Generator
 from warnings import warn
-from weakref import WeakSet, WeakValueDictionary, finalize, ref
+from weakref import WeakSet, WeakKeyDictionary, WeakValueDictionary, finalize, \
+                    ref
 import asyncio
 import collections.abc
 import errno
@@ -793,7 +794,10 @@ class DeviceHandle:
 
 
     def cancel_all(self):
-        """Cancel all registered transfers."""
+        """
+        Cancel all registered transfers.
+        Thread-safe.
+        """
 
         with self._lock:
             for transfer in self._transfers:
@@ -963,7 +967,8 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
 
             _libusb.libusb_unref_device(device_ref)
 
-        context._queue.add(self, finalization, ref(self), device_ref)
+        context._devices[self] = finalize(self, finalization, ref(self),
+                                          device_ref)
 
     def __repr__(self):
         return f"<{type(self).__module__}.{type(self).__name__} {self.idVendor:0{4}X}:{self.idProduct:0{4}X}>"
@@ -1738,85 +1743,29 @@ class Transfer:
 
 
 
-# A class representing a linked list node.
-class _WeakNode:
-    __slots__ = ('__weakref__', 'ref', 'prev', 'next')
-
-    def __init__(self, prev):
-        self.ref = None
-        self.prev = prev
-        self.next = None
-
-        if prev is not None:
-            prev.next = ref(self)
-
-# A class representing a specialized type of linked list, whose elements
-# are weakref.ref objects with callbacks that can be executed all at
-# once, in LIFO order.
-# TODO: make callback hold weakref to node while still ensuring execution
-class _FinalizationQueue:
-    __slots__ = ('__weakref__', 'tail')
-
-    def __init__(self):
-        self.tail = None
-
-    def add(self, obj, func, /, *args, **kwargs):
-        node = _WeakNode(self.tail)
-        self.tail = node
-
-        def callback(itemref = None, selfref = ref(self)):
-            self = selfref()
-
-            if hasattr(node, 'ref'):
-                if node.next is not None:
-                    nextnode = node.next()
-                    if nextnode is not None:
-                        nextnode.prev = prevnode
-
-                if node.prev is not None:
-                    node.prev.next = node.next
-
-                if self is not None:
-                    if self.tail is node:
-                        self.tail = node.prev
-
-                del node.ref
-                del node.next
-                del node.prev
-
-                func(*args, **kwargs)
-
-        node.ref = ref(obj, callback)
-        return callback
-
-    def __call__(self):
-        while self.tail is not None:
-            self.tail.ref.__callback__()
-
-
-
 # A reusable zero timeval.
 _tv_zero = _libusb.struct_timeval()
 
 class Context:
     """
     The context that all operations will be run under.
-    Events are handled in the event loop. Not thread-safe.
+    I/O events are handled in the current/given event loop. Not thread-safe,
+    except where otherwise noted.
 
     Context instances are single-entry.
     """
 
-    __slots__ = ('_obj', '_queue', '_loop', '_timed_events',
-                 '_pollfds', '_pollfd_added_cb', '_pollfd_removed_cb')
+    __slots__ = ('_obj', '_loop', '_timed_events', '_devices', '_pollfds',
+                 '_pollfd_added_cb', '_pollfd_removed_cb')
 
     def __init__(self, *, loop: asyncio.AbstractEventLoop = None):
         self._loop = loop or asyncio.get_event_loop()
         self._obj = POINTER(_libusb.struct_libusb_context)()
-        self._queue = _FinalizationQueue()
+        self._devices = WeakKeyDictionary()
         self._pollfds = set()
 
         # Create the pollfd notifier C callbacks. We have to set them as
-        # attributes to prevent garbage collection.
+        # attributes to prevent premature garbage collection.
         self._pollfd_added_cb = _libusb.libusb_pollfd_added_cb(
                 self.__set_pollfd)
         self._pollfd_removed_cb = _libusb.libusb_pollfd_removed_cb(
@@ -1828,7 +1777,7 @@ class Context:
     def __enter__(self):
         # Ensure this context hasn't been previously entered or used.
         if getattr(self, '_obj', True):
-            raise RuntimeError("Context instances are single-entry")
+            raise RuntimeError("cannot reenter single-use Context instance")
 
         # Inititalize the underlying context.
         _catch( _libusb.libusb_init(byref(self._obj)) )
@@ -1872,8 +1821,10 @@ class Context:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        # Call all queued resource finalizers.
-        self._queue()
+        # Finalize device references.
+        for finalizer in self._devices.values():
+            finalizer()
+        self._devices.clear()
 
         # Unset pollfd callbacks.
         _libusb.libusb_set_pollfd_notifiers(self._obj,
