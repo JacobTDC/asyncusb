@@ -14,7 +14,7 @@ async def main():
 
         # Inspect device attributes and choose a device. We'll just take the
         # first device for the purposes of this example.
-        dev = device[0]
+        dev = devices[0]
 
         async with dev.open() as handle:
             # Handle kernel drivers automatically.
