@@ -867,25 +867,25 @@ _libs["usb-1.0"] = load_library("usb-1.0")
 
 # No modules
 
-__uint8_t = c_ubyte# /usr/include/aarch64-linux-gnu/bits/types.h: 38
+__uint8_t = c_ubyte# /usr/include/x86_64-linux-gnu/bits/types.h: 38
 
-__uint16_t = c_ushort# /usr/include/aarch64-linux-gnu/bits/types.h: 40
+__uint16_t = c_ushort# /usr/include/x86_64-linux-gnu/bits/types.h: 40
 
-__uint32_t = c_uint# /usr/include/aarch64-linux-gnu/bits/types.h: 42
+__uint32_t = c_uint# /usr/include/x86_64-linux-gnu/bits/types.h: 42
 
-__time_t = c_long# /usr/include/aarch64-linux-gnu/bits/types.h: 160
+__time_t = c_long# /usr/include/x86_64-linux-gnu/bits/types.h: 160
 
-__suseconds_t = c_long# /usr/include/aarch64-linux-gnu/bits/types.h: 162
+__suseconds_t = c_long# /usr/include/x86_64-linux-gnu/bits/types.h: 162
 
-uint8_t = __uint8_t# /usr/include/aarch64-linux-gnu/bits/stdint-uintn.h: 24
+uint8_t = __uint8_t# /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h: 24
 
-uint16_t = __uint16_t# /usr/include/aarch64-linux-gnu/bits/stdint-uintn.h: 25
+uint16_t = __uint16_t# /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h: 25
 
-uint32_t = __uint32_t# /usr/include/aarch64-linux-gnu/bits/stdint-uintn.h: 26
+uint32_t = __uint32_t# /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h: 26
 
-intptr_t = c_long# /usr/include/stdint.h: 87
+intptr_t = c_long# /usr/include/stdint.h: 76
 
-# /usr/include/aarch64-linux-gnu/bits/types/struct_timeval.h: 8
+# /usr/include/x86_64-linux-gnu/bits/types/struct_timeval.h: 8
 class struct_timeval(Structure):
     pass
 
@@ -898,7 +898,7 @@ struct_timeval._fields_ = [
     ('tv_usec', __suseconds_t),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 167
+# /usr/include/libusb-1.0/libusb.h: 198
 class union_anon_15(Union):
     pass
 
@@ -911,7 +911,7 @@ union_anon_15._fields_ = [
     ('b16', uint16_t),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 167
+# /usr/include/libusb-1.0/libusb.h: 198
 for _lib in _libs.values():
     try:
         _tmp = (union_anon_15).in_dll(_lib, "_tmp")
@@ -919,187 +919,193 @@ for _lib in _libs.values():
     except:
         pass
 
-enum_libusb_class_code = c_int# /usr/include/libusb-1.0/libusb.h: 187
+enum_libusb_class_code = c_int# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_PER_INTERFACE = 0x00# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_PER_INTERFACE = 0x00# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_AUDIO = 0x01# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_AUDIO = 0x01# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_COMM = 0x02# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_COMM = 0x02# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_HID = 0x03# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_HID = 0x03# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_PHYSICAL = 0x05# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_PHYSICAL = 0x05# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_IMAGE = 0x06# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_IMAGE = 0x06# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_PTP = 0x06# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_PTP = 0x06# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_PRINTER = 0x07# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_PRINTER = 0x07# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_MASS_STORAGE = 0x08# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_MASS_STORAGE = 0x08# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_HUB = 0x09# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_HUB = 0x09# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_DATA = 0x0a# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_DATA = 0x0a# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_SMART_CARD = 0x0b# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_SMART_CARD = 0x0b# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_CONTENT_SECURITY = 0x0d# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_CONTENT_SECURITY = 0x0d# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_VIDEO = 0x0e# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_VIDEO = 0x0e# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_PERSONAL_HEALTHCARE = 0x0f# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_PERSONAL_HEALTHCARE = 0x0f# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_DIAGNOSTIC_DEVICE = 0xdc# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_DIAGNOSTIC_DEVICE = 0xdc# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_WIRELESS = 0xe0# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_WIRELESS = 0xe0# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_MISCELLANEOUS = 0xef# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_MISCELLANEOUS = 0xef# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_APPLICATION = 0xfe# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_APPLICATION = 0xfe# /usr/include/libusb-1.0/libusb.h: 218
 
-LIBUSB_CLASS_VENDOR_SPEC = 0xff# /usr/include/libusb-1.0/libusb.h: 187
+LIBUSB_CLASS_VENDOR_SPEC = 0xff# /usr/include/libusb-1.0/libusb.h: 218
 
-enum_libusb_descriptor_type = c_int# /usr/include/libusb-1.0/libusb.h: 252
+enum_libusb_descriptor_type = c_int# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_DEVICE = 0x01# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_DEVICE = 0x01# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_CONFIG = 0x02# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_CONFIG = 0x02# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_STRING = 0x03# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_STRING = 0x03# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_INTERFACE = 0x04# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_INTERFACE = 0x04# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_ENDPOINT = 0x05# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_ENDPOINT = 0x05# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_BOS = 0x0f# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_INTERFACE_ASSOCIATION = 0x0b# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_DEVICE_CAPABILITY = 0x10# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_BOS = 0x0f# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_HID = 0x21# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_DEVICE_CAPABILITY = 0x10# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_REPORT = 0x22# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_HID = 0x21# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_PHYSICAL = 0x23# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_REPORT = 0x22# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_HUB = 0x29# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_PHYSICAL = 0x23# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_SUPERSPEED_HUB = 0x2a# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_HUB = 0x29# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_DT_SS_ENDPOINT_COMPANION = 0x30# /usr/include/libusb-1.0/libusb.h: 252
+LIBUSB_DT_SUPERSPEED_HUB = 0x2a# /usr/include/libusb-1.0/libusb.h: 283
 
-enum_libusb_endpoint_direction = c_int# /usr/include/libusb-1.0/libusb.h: 323
+LIBUSB_DT_SS_ENDPOINT_COMPANION = 0x30# /usr/include/libusb-1.0/libusb.h: 283
 
-LIBUSB_ENDPOINT_OUT = 0x00# /usr/include/libusb-1.0/libusb.h: 323
+enum_libusb_endpoint_direction = c_int# /usr/include/libusb-1.0/libusb.h: 361
 
-LIBUSB_ENDPOINT_IN = 0x80# /usr/include/libusb-1.0/libusb.h: 323
+LIBUSB_ENDPOINT_OUT = 0x00# /usr/include/libusb-1.0/libusb.h: 361
 
-enum_libusb_endpoint_transfer_type = c_int# /usr/include/libusb-1.0/libusb.h: 337
+LIBUSB_ENDPOINT_IN = 0x80# /usr/include/libusb-1.0/libusb.h: 361
 
-LIBUSB_ENDPOINT_TRANSFER_TYPE_CONTROL = 0x0# /usr/include/libusb-1.0/libusb.h: 337
+enum_libusb_endpoint_transfer_type = c_int# /usr/include/libusb-1.0/libusb.h: 375
 
-LIBUSB_ENDPOINT_TRANSFER_TYPE_ISOCHRONOUS = 0x1# /usr/include/libusb-1.0/libusb.h: 337
+LIBUSB_ENDPOINT_TRANSFER_TYPE_CONTROL = 0x0# /usr/include/libusb-1.0/libusb.h: 375
 
-LIBUSB_ENDPOINT_TRANSFER_TYPE_BULK = 0x2# /usr/include/libusb-1.0/libusb.h: 337
+LIBUSB_ENDPOINT_TRANSFER_TYPE_ISOCHRONOUS = 0x1# /usr/include/libusb-1.0/libusb.h: 375
 
-LIBUSB_ENDPOINT_TRANSFER_TYPE_INTERRUPT = 0x3# /usr/include/libusb-1.0/libusb.h: 337
+LIBUSB_ENDPOINT_TRANSFER_TYPE_BULK = 0x2# /usr/include/libusb-1.0/libusb.h: 375
 
-enum_libusb_standard_request = c_int# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_ENDPOINT_TRANSFER_TYPE_INTERRUPT = 0x3# /usr/include/libusb-1.0/libusb.h: 375
 
-LIBUSB_REQUEST_GET_STATUS = 0x00# /usr/include/libusb-1.0/libusb.h: 353
+enum_libusb_standard_request = c_int# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_REQUEST_CLEAR_FEATURE = 0x01# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_REQUEST_GET_STATUS = 0x00# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_REQUEST_SET_FEATURE = 0x03# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_REQUEST_CLEAR_FEATURE = 0x01# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_REQUEST_SET_ADDRESS = 0x05# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_REQUEST_SET_FEATURE = 0x03# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_REQUEST_GET_DESCRIPTOR = 0x06# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_REQUEST_SET_ADDRESS = 0x05# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_REQUEST_SET_DESCRIPTOR = 0x07# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_REQUEST_GET_DESCRIPTOR = 0x06# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_REQUEST_GET_CONFIGURATION = 0x08# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_REQUEST_SET_DESCRIPTOR = 0x07# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_REQUEST_SET_CONFIGURATION = 0x09# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_REQUEST_GET_CONFIGURATION = 0x08# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_REQUEST_GET_INTERFACE = 0x0a# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_REQUEST_SET_CONFIGURATION = 0x09# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_REQUEST_SET_INTERFACE = 0x0b# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_REQUEST_GET_INTERFACE = 0x0a# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_REQUEST_SYNCH_FRAME = 0x0c# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_REQUEST_SET_INTERFACE = 0x0b# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_REQUEST_SET_SEL = 0x30# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_REQUEST_SYNCH_FRAME = 0x0c# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_SET_ISOCH_DELAY = 0x31# /usr/include/libusb-1.0/libusb.h: 353
+LIBUSB_REQUEST_SET_SEL = 0x30# /usr/include/libusb-1.0/libusb.h: 391
 
-enum_libusb_request_type = c_int# /usr/include/libusb-1.0/libusb.h: 403
+LIBUSB_SET_ISOCH_DELAY = 0x31# /usr/include/libusb-1.0/libusb.h: 391
 
-LIBUSB_REQUEST_TYPE_STANDARD = (0x00 << 5)# /usr/include/libusb-1.0/libusb.h: 403
+enum_libusb_request_type = c_int# /usr/include/libusb-1.0/libusb.h: 441
 
-LIBUSB_REQUEST_TYPE_CLASS = (0x01 << 5)# /usr/include/libusb-1.0/libusb.h: 403
+LIBUSB_REQUEST_TYPE_STANDARD = (0x00 << 5)# /usr/include/libusb-1.0/libusb.h: 441
 
-LIBUSB_REQUEST_TYPE_VENDOR = (0x02 << 5)# /usr/include/libusb-1.0/libusb.h: 403
+LIBUSB_REQUEST_TYPE_CLASS = (0x01 << 5)# /usr/include/libusb-1.0/libusb.h: 441
 
-LIBUSB_REQUEST_TYPE_RESERVED = (0x03 << 5)# /usr/include/libusb-1.0/libusb.h: 403
+LIBUSB_REQUEST_TYPE_VENDOR = (0x02 << 5)# /usr/include/libusb-1.0/libusb.h: 441
 
-enum_libusb_request_recipient = c_int# /usr/include/libusb-1.0/libusb.h: 421
+LIBUSB_REQUEST_TYPE_RESERVED = (0x03 << 5)# /usr/include/libusb-1.0/libusb.h: 441
 
-LIBUSB_RECIPIENT_DEVICE = 0x00# /usr/include/libusb-1.0/libusb.h: 421
+enum_libusb_request_recipient = c_int# /usr/include/libusb-1.0/libusb.h: 459
 
-LIBUSB_RECIPIENT_INTERFACE = 0x01# /usr/include/libusb-1.0/libusb.h: 421
+LIBUSB_RECIPIENT_DEVICE = 0x00# /usr/include/libusb-1.0/libusb.h: 459
 
-LIBUSB_RECIPIENT_ENDPOINT = 0x02# /usr/include/libusb-1.0/libusb.h: 421
+LIBUSB_RECIPIENT_INTERFACE = 0x01# /usr/include/libusb-1.0/libusb.h: 459
 
-LIBUSB_RECIPIENT_OTHER = 0x03# /usr/include/libusb-1.0/libusb.h: 421
+LIBUSB_RECIPIENT_ENDPOINT = 0x02# /usr/include/libusb-1.0/libusb.h: 459
 
-enum_libusb_iso_sync_type = c_int# /usr/include/libusb-1.0/libusb.h: 442
+LIBUSB_RECIPIENT_OTHER = 0x03# /usr/include/libusb-1.0/libusb.h: 459
 
-LIBUSB_ISO_SYNC_TYPE_NONE = 0x0# /usr/include/libusb-1.0/libusb.h: 442
+enum_libusb_iso_sync_type = c_int# /usr/include/libusb-1.0/libusb.h: 480
 
-LIBUSB_ISO_SYNC_TYPE_ASYNC = 0x1# /usr/include/libusb-1.0/libusb.h: 442
+LIBUSB_ISO_SYNC_TYPE_NONE = 0x0# /usr/include/libusb-1.0/libusb.h: 480
 
-LIBUSB_ISO_SYNC_TYPE_ADAPTIVE = 0x2# /usr/include/libusb-1.0/libusb.h: 442
+LIBUSB_ISO_SYNC_TYPE_ASYNC = 0x1# /usr/include/libusb-1.0/libusb.h: 480
 
-LIBUSB_ISO_SYNC_TYPE_SYNC = 0x3# /usr/include/libusb-1.0/libusb.h: 442
+LIBUSB_ISO_SYNC_TYPE_ADAPTIVE = 0x2# /usr/include/libusb-1.0/libusb.h: 480
 
-enum_libusb_iso_usage_type = c_int# /usr/include/libusb-1.0/libusb.h: 463
+LIBUSB_ISO_SYNC_TYPE_SYNC = 0x3# /usr/include/libusb-1.0/libusb.h: 480
 
-LIBUSB_ISO_USAGE_TYPE_DATA = 0x0# /usr/include/libusb-1.0/libusb.h: 463
+enum_libusb_iso_usage_type = c_int# /usr/include/libusb-1.0/libusb.h: 501
 
-LIBUSB_ISO_USAGE_TYPE_FEEDBACK = 0x1# /usr/include/libusb-1.0/libusb.h: 463
+LIBUSB_ISO_USAGE_TYPE_DATA = 0x0# /usr/include/libusb-1.0/libusb.h: 501
 
-LIBUSB_ISO_USAGE_TYPE_IMPLICIT = 0x2# /usr/include/libusb-1.0/libusb.h: 463
+LIBUSB_ISO_USAGE_TYPE_FEEDBACK = 0x1# /usr/include/libusb-1.0/libusb.h: 501
 
-enum_libusb_supported_speed = c_int# /usr/include/libusb-1.0/libusb.h: 478
+LIBUSB_ISO_USAGE_TYPE_IMPLICIT = 0x2# /usr/include/libusb-1.0/libusb.h: 501
 
-LIBUSB_LOW_SPEED_OPERATION = (1 << 0)# /usr/include/libusb-1.0/libusb.h: 478
+enum_libusb_supported_speed = c_int# /usr/include/libusb-1.0/libusb.h: 516
 
-LIBUSB_FULL_SPEED_OPERATION = (1 << 1)# /usr/include/libusb-1.0/libusb.h: 478
+LIBUSB_LOW_SPEED_OPERATION = (1 << 0)# /usr/include/libusb-1.0/libusb.h: 516
 
-LIBUSB_HIGH_SPEED_OPERATION = (1 << 2)# /usr/include/libusb-1.0/libusb.h: 478
+LIBUSB_FULL_SPEED_OPERATION = (1 << 1)# /usr/include/libusb-1.0/libusb.h: 516
 
-LIBUSB_SUPER_SPEED_OPERATION = (1 << 3)# /usr/include/libusb-1.0/libusb.h: 478
+LIBUSB_HIGH_SPEED_OPERATION = (1 << 2)# /usr/include/libusb-1.0/libusb.h: 516
 
-enum_libusb_usb_2_0_extension_attributes = c_int# /usr/include/libusb-1.0/libusb.h: 497
+LIBUSB_SUPER_SPEED_OPERATION = (1 << 3)# /usr/include/libusb-1.0/libusb.h: 516
 
-LIBUSB_BM_LPM_SUPPORT = (1 << 1)# /usr/include/libusb-1.0/libusb.h: 497
+enum_libusb_usb_2_0_extension_attributes = c_int# /usr/include/libusb-1.0/libusb.h: 535
 
-enum_libusb_ss_usb_device_capability_attributes = c_int# /usr/include/libusb-1.0/libusb.h: 507
+LIBUSB_BM_LPM_SUPPORT = (1 << 1)# /usr/include/libusb-1.0/libusb.h: 535
 
-LIBUSB_BM_LTM_SUPPORT = (1 << 1)# /usr/include/libusb-1.0/libusb.h: 507
+enum_libusb_ss_usb_device_capability_attributes = c_int# /usr/include/libusb-1.0/libusb.h: 545
 
-enum_libusb_bos_type = c_int# /usr/include/libusb-1.0/libusb.h: 515
+LIBUSB_BM_LTM_SUPPORT = (1 << 1)# /usr/include/libusb-1.0/libusb.h: 545
 
-LIBUSB_BT_WIRELESS_USB_DEVICE_CAPABILITY = 0x01# /usr/include/libusb-1.0/libusb.h: 515
+enum_libusb_bos_type = c_int# /usr/include/libusb-1.0/libusb.h: 553
 
-LIBUSB_BT_USB_2_0_EXTENSION = 0x02# /usr/include/libusb-1.0/libusb.h: 515
+LIBUSB_BT_WIRELESS_USB_DEVICE_CAPABILITY = 0x01# /usr/include/libusb-1.0/libusb.h: 553
 
-LIBUSB_BT_SS_USB_DEVICE_CAPABILITY = 0x03# /usr/include/libusb-1.0/libusb.h: 515
+LIBUSB_BT_USB_2_0_EXTENSION = 0x02# /usr/include/libusb-1.0/libusb.h: 553
 
-LIBUSB_BT_CONTAINER_ID = 0x04# /usr/include/libusb-1.0/libusb.h: 515
+LIBUSB_BT_SS_USB_DEVICE_CAPABILITY = 0x03# /usr/include/libusb-1.0/libusb.h: 553
 
-# /usr/include/libusb-1.0/libusb.h: 534
+LIBUSB_BT_CONTAINER_ID = 0x04# /usr/include/libusb-1.0/libusb.h: 553
+
+LIBUSB_BT_PLATFORM_DESCRIPTOR = 0x05# /usr/include/libusb-1.0/libusb.h: 553
+
+LIBUSB_BT_SUPERSPEED_PLUS_CAPABILITY = 0x0A# /usr/include/libusb-1.0/libusb.h: 553
+
+# /usr/include/libusb-1.0/libusb.h: 578
 class struct_libusb_device_descriptor(Structure):
     pass
 
@@ -1136,7 +1142,7 @@ struct_libusb_device_descriptor._fields_ = [
     ('bNumConfigurations', uint8_t),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 588
+# /usr/include/libusb-1.0/libusb.h: 632
 class struct_libusb_endpoint_descriptor(Structure):
     pass
 
@@ -1165,7 +1171,45 @@ struct_libusb_endpoint_descriptor._fields_ = [
     ('extra_length', c_int),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 636
+# /usr/include/libusb-1.0/libusb.h: 680
+class struct_libusb_interface_association_descriptor(Structure):
+    pass
+
+struct_libusb_interface_association_descriptor.__slots__ = [
+    'bLength',
+    'bDescriptorType',
+    'bFirstInterface',
+    'bInterfaceCount',
+    'bFunctionClass',
+    'bFunctionSubClass',
+    'bFunctionProtocol',
+    'iFunction',
+]
+struct_libusb_interface_association_descriptor._fields_ = [
+    ('bLength', uint8_t),
+    ('bDescriptorType', uint8_t),
+    ('bFirstInterface', uint8_t),
+    ('bInterfaceCount', uint8_t),
+    ('bFunctionClass', uint8_t),
+    ('bFunctionSubClass', uint8_t),
+    ('bFunctionProtocol', uint8_t),
+    ('iFunction', uint8_t),
+]
+
+# /usr/include/libusb-1.0/libusb.h: 724
+class struct_libusb_interface_association_descriptor_array(Structure):
+    pass
+
+struct_libusb_interface_association_descriptor_array.__slots__ = [
+    'iad',
+    'length',
+]
+struct_libusb_interface_association_descriptor_array._fields_ = [
+    ('iad', POINTER(struct_libusb_interface_association_descriptor)),
+    ('length', c_int),
+]
+
+# /usr/include/libusb-1.0/libusb.h: 739
 class struct_libusb_interface_descriptor(Structure):
     pass
 
@@ -1198,7 +1242,7 @@ struct_libusb_interface_descriptor._fields_ = [
     ('extra_length', c_int),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 684
+# /usr/include/libusb-1.0/libusb.h: 787
 class struct_libusb_interface(Structure):
     pass
 
@@ -1211,7 +1255,7 @@ struct_libusb_interface._fields_ = [
     ('num_altsetting', c_int),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 699
+# /usr/include/libusb-1.0/libusb.h: 802
 class struct_libusb_config_descriptor(Structure):
     pass
 
@@ -1242,7 +1286,7 @@ struct_libusb_config_descriptor._fields_ = [
     ('extra_length', c_int),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 747
+# /usr/include/libusb-1.0/libusb.h: 850
 class struct_libusb_ss_endpoint_companion_descriptor(Structure):
     pass
 
@@ -1261,7 +1305,7 @@ struct_libusb_ss_endpoint_companion_descriptor._fields_ = [
     ('wBytesPerInterval', uint16_t),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 776
+# /usr/include/libusb-1.0/libusb.h: 879
 class struct_libusb_bos_dev_capability_descriptor(Structure):
     pass
 
@@ -1278,7 +1322,7 @@ struct_libusb_bos_dev_capability_descriptor._fields_ = [
     ('dev_capability_data', POINTER(uint8_t)),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 797
+# /usr/include/libusb-1.0/libusb.h: 900
 class struct_libusb_bos_descriptor(Structure):
     pass
 
@@ -1297,7 +1341,7 @@ struct_libusb_bos_descriptor._fields_ = [
     ('dev_capability', POINTER(POINTER(struct_libusb_bos_dev_capability_descriptor))),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 822
+# /usr/include/libusb-1.0/libusb.h: 925
 class struct_libusb_usb_2_0_extension_descriptor(Structure):
     pass
 
@@ -1314,7 +1358,7 @@ struct_libusb_usb_2_0_extension_descriptor._fields_ = [
     ('bmAttributes', uint32_t),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 848
+# /usr/include/libusb-1.0/libusb.h: 951
 class struct_libusb_ss_usb_device_capability_descriptor(Structure):
     pass
 
@@ -1339,7 +1383,77 @@ struct_libusb_ss_usb_device_capability_descriptor._fields_ = [
     ('bU2DevExitLat', uint16_t),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 890
+enum_libusb_superspeedplus_sublink_attribute_sublink_type = c_int# /usr/include/libusb-1.0/libusb.h: 991
+
+LIBUSB_SSPLUS_ATTR_TYPE_SYM = 0# /usr/include/libusb-1.0/libusb.h: 991
+
+LIBUSB_SSPLUS_ATTR_TYPE_ASYM = 1# /usr/include/libusb-1.0/libusb.h: 991
+
+enum_libusb_superspeedplus_sublink_attribute_sublink_direction = c_int# /usr/include/libusb-1.0/libusb.h: 999
+
+LIBUSB_SSPLUS_ATTR_DIR_RX = 0# /usr/include/libusb-1.0/libusb.h: 999
+
+LIBUSB_SSPLUS_ATTR_DIR_TX = 1# /usr/include/libusb-1.0/libusb.h: 999
+
+enum_libusb_superspeedplus_sublink_attribute_exponent = c_int# /usr/include/libusb-1.0/libusb.h: 1011
+
+LIBUSB_SSPLUS_ATTR_EXP_BPS = 0# /usr/include/libusb-1.0/libusb.h: 1011
+
+LIBUSB_SSPLUS_ATTR_EXP_KBS = 1# /usr/include/libusb-1.0/libusb.h: 1011
+
+LIBUSB_SSPLUS_ATTR_EXP_MBS = 2# /usr/include/libusb-1.0/libusb.h: 1011
+
+LIBUSB_SSPLUS_ATTR_EXP_GBS = 3# /usr/include/libusb-1.0/libusb.h: 1011
+
+enum_libusb_superspeedplus_sublink_attribute_link_protocol = c_int# /usr/include/libusb-1.0/libusb.h: 1021
+
+LIBUSB_SSPLUS_ATTR_PROT_SS = 0# /usr/include/libusb-1.0/libusb.h: 1021
+
+LIBUSB_SSPLUS_ATTR_PROT_SSPLUS = 1# /usr/include/libusb-1.0/libusb.h: 1021
+
+# /usr/include/libusb-1.0/libusb.h: 1029
+class struct_libusb_ssplus_sublink_attribute(Structure):
+    pass
+
+struct_libusb_ssplus_sublink_attribute.__slots__ = [
+    'ssid',
+    'exponent',
+    'type',
+    'direction',
+    'protocol',
+    'mantissa',
+]
+struct_libusb_ssplus_sublink_attribute._fields_ = [
+    ('ssid', uint8_t),
+    ('exponent', enum_libusb_superspeedplus_sublink_attribute_exponent),
+    ('type', enum_libusb_superspeedplus_sublink_attribute_sublink_type),
+    ('direction', enum_libusb_superspeedplus_sublink_attribute_sublink_direction),
+    ('protocol', enum_libusb_superspeedplus_sublink_attribute_link_protocol),
+    ('mantissa', uint16_t),
+]
+
+# /usr/include/libusb-1.0/libusb.h: 1062
+class struct_libusb_ssplus_usb_device_capability_descriptor(Structure):
+    pass
+
+struct_libusb_ssplus_usb_device_capability_descriptor.__slots__ = [
+    'numSublinkSpeedAttributes',
+    'numSublinkSpeedIDs',
+    'ssid',
+    'minRxLaneCount',
+    'minTxLaneCount',
+    'sublinkSpeedAttributes',
+]
+struct_libusb_ssplus_usb_device_capability_descriptor._fields_ = [
+    ('numSublinkSpeedAttributes', uint8_t),
+    ('numSublinkSpeedIDs', uint8_t),
+    ('ssid', uint8_t),
+    ('minRxLaneCount', uint8_t),
+    ('minTxLaneCount', uint8_t),
+    ('sublinkSpeedAttributes', POINTER(struct_libusb_ssplus_sublink_attribute)),
+]
+
+# /usr/include/libusb-1.0/libusb.h: 1087
 class struct_libusb_container_id_descriptor(Structure):
     pass
 
@@ -1358,7 +1472,28 @@ struct_libusb_container_id_descriptor._fields_ = [
     ('ContainerID', uint8_t * int(16)),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 916
+# /usr/include/libusb-1.0/libusb.h: 1112
+class struct_libusb_platform_descriptor(Structure):
+    pass
+
+struct_libusb_platform_descriptor.__slots__ = [
+    'bLength',
+    'bDescriptorType',
+    'bDevCapabilityType',
+    'bReserved',
+    'PlatformCapabilityUUID',
+    'CapabilityData',
+]
+struct_libusb_platform_descriptor._fields_ = [
+    ('bLength', uint8_t),
+    ('bDescriptorType', uint8_t),
+    ('bDevCapabilityType', uint8_t),
+    ('bReserved', uint8_t),
+    ('PlatformCapabilityUUID', uint8_t * int(16)),
+    ('CapabilityData', POINTER(uint8_t)),
+]
+
+# /usr/include/libusb-1.0/libusb.h: 1141
 class struct_libusb_control_setup(Structure):
     pass
 
@@ -1377,19 +1512,19 @@ struct_libusb_control_setup._fields_ = [
     ('wLength', uint16_t),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 949
+# /usr/include/libusb-1.0/libusb.h: 1174
 class struct_libusb_context(Structure):
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 950
+# /usr/include/libusb-1.0/libusb.h: 1175
 class struct_libusb_device(Structure):
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 951
+# /usr/include/libusb-1.0/libusb.h: 1176
 class struct_libusb_device_handle(Structure):
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 956
+# /usr/include/libusb-1.0/libusb.h: 1181
 class struct_libusb_version(Structure):
     pass
 
@@ -1410,95 +1545,97 @@ struct_libusb_version._fields_ = [
     ('describe', String),
 ]
 
-libusb_context = struct_libusb_context# /usr/include/libusb-1.0/libusb.h: 994
+libusb_context = struct_libusb_context# /usr/include/libusb-1.0/libusb.h: 1219
 
-libusb_device = struct_libusb_device# /usr/include/libusb-1.0/libusb.h: 1011
+libusb_device = struct_libusb_device# /usr/include/libusb-1.0/libusb.h: 1236
 
-libusb_device_handle = struct_libusb_device_handle# /usr/include/libusb-1.0/libusb.h: 1022
+libusb_device_handle = struct_libusb_device_handle# /usr/include/libusb-1.0/libusb.h: 1247
 
-enum_libusb_speed = c_int# /usr/include/libusb-1.0/libusb.h: 1027
+enum_libusb_speed = c_int# /usr/include/libusb-1.0/libusb.h: 1252
 
-LIBUSB_SPEED_UNKNOWN = 0# /usr/include/libusb-1.0/libusb.h: 1027
+LIBUSB_SPEED_UNKNOWN = 0# /usr/include/libusb-1.0/libusb.h: 1252
 
-LIBUSB_SPEED_LOW = 1# /usr/include/libusb-1.0/libusb.h: 1027
+LIBUSB_SPEED_LOW = 1# /usr/include/libusb-1.0/libusb.h: 1252
 
-LIBUSB_SPEED_FULL = 2# /usr/include/libusb-1.0/libusb.h: 1027
+LIBUSB_SPEED_FULL = 2# /usr/include/libusb-1.0/libusb.h: 1252
 
-LIBUSB_SPEED_HIGH = 3# /usr/include/libusb-1.0/libusb.h: 1027
+LIBUSB_SPEED_HIGH = 3# /usr/include/libusb-1.0/libusb.h: 1252
 
-LIBUSB_SPEED_SUPER = 4# /usr/include/libusb-1.0/libusb.h: 1027
+LIBUSB_SPEED_SUPER = 4# /usr/include/libusb-1.0/libusb.h: 1252
 
-LIBUSB_SPEED_SUPER_PLUS = 5# /usr/include/libusb-1.0/libusb.h: 1027
+LIBUSB_SPEED_SUPER_PLUS = 5# /usr/include/libusb-1.0/libusb.h: 1252
 
-enum_libusb_error = c_int# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_SPEED_SUPER_PLUS_X2 = 6# /usr/include/libusb-1.0/libusb.h: 1252
 
-LIBUSB_SUCCESS = 0# /usr/include/libusb-1.0/libusb.h: 1054
+enum_libusb_error = c_int# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_IO = (-1)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_SUCCESS = 0# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_INVALID_PARAM = (-2)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_ERROR_IO = (-1)# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_ACCESS = (-3)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_ERROR_INVALID_PARAM = (-2)# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_NO_DEVICE = (-4)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_ERROR_ACCESS = (-3)# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_NOT_FOUND = (-5)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_ERROR_NO_DEVICE = (-4)# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_BUSY = (-6)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_ERROR_NOT_FOUND = (-5)# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_TIMEOUT = (-7)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_ERROR_BUSY = (-6)# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_OVERFLOW = (-8)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_ERROR_TIMEOUT = (-7)# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_PIPE = (-9)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_ERROR_OVERFLOW = (-8)# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_INTERRUPTED = (-10)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_ERROR_PIPE = (-9)# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_NO_MEM = (-11)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_ERROR_INTERRUPTED = (-10)# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_NOT_SUPPORTED = (-12)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_ERROR_NO_MEM = (-11)# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_ERROR_OTHER = (-99)# /usr/include/libusb-1.0/libusb.h: 1054
+LIBUSB_ERROR_NOT_SUPPORTED = (-12)# /usr/include/libusb-1.0/libusb.h: 1282
 
-enum_libusb_transfer_type = c_int# /usr/include/libusb-1.0/libusb.h: 1106
+LIBUSB_ERROR_OTHER = (-99)# /usr/include/libusb-1.0/libusb.h: 1282
 
-LIBUSB_TRANSFER_TYPE_CONTROL = 0# /usr/include/libusb-1.0/libusb.h: 1106
+enum_libusb_transfer_type = c_int# /usr/include/libusb-1.0/libusb.h: 1334
 
-LIBUSB_TRANSFER_TYPE_ISOCHRONOUS = 1# /usr/include/libusb-1.0/libusb.h: 1106
+LIBUSB_TRANSFER_TYPE_CONTROL = 0# /usr/include/libusb-1.0/libusb.h: 1334
 
-LIBUSB_TRANSFER_TYPE_BULK = 2# /usr/include/libusb-1.0/libusb.h: 1106
+LIBUSB_TRANSFER_TYPE_ISOCHRONOUS = 1# /usr/include/libusb-1.0/libusb.h: 1334
 
-LIBUSB_TRANSFER_TYPE_INTERRUPT = 3# /usr/include/libusb-1.0/libusb.h: 1106
+LIBUSB_TRANSFER_TYPE_BULK = 2# /usr/include/libusb-1.0/libusb.h: 1334
 
-LIBUSB_TRANSFER_TYPE_BULK_STREAM = 4# /usr/include/libusb-1.0/libusb.h: 1106
+LIBUSB_TRANSFER_TYPE_INTERRUPT = 3# /usr/include/libusb-1.0/libusb.h: 1334
 
-enum_libusb_transfer_status = c_int# /usr/include/libusb-1.0/libusb.h: 1125
+LIBUSB_TRANSFER_TYPE_BULK_STREAM = 4# /usr/include/libusb-1.0/libusb.h: 1334
 
-LIBUSB_TRANSFER_COMPLETED = 0# /usr/include/libusb-1.0/libusb.h: 1125
+enum_libusb_transfer_status = c_int# /usr/include/libusb-1.0/libusb.h: 1353
 
-LIBUSB_TRANSFER_ERROR = (LIBUSB_TRANSFER_COMPLETED + 1)# /usr/include/libusb-1.0/libusb.h: 1125
+LIBUSB_TRANSFER_COMPLETED = 0# /usr/include/libusb-1.0/libusb.h: 1353
 
-LIBUSB_TRANSFER_TIMED_OUT = (LIBUSB_TRANSFER_ERROR + 1)# /usr/include/libusb-1.0/libusb.h: 1125
+LIBUSB_TRANSFER_ERROR = (LIBUSB_TRANSFER_COMPLETED + 1)# /usr/include/libusb-1.0/libusb.h: 1353
 
-LIBUSB_TRANSFER_CANCELLED = (LIBUSB_TRANSFER_TIMED_OUT + 1)# /usr/include/libusb-1.0/libusb.h: 1125
+LIBUSB_TRANSFER_TIMED_OUT = (LIBUSB_TRANSFER_ERROR + 1)# /usr/include/libusb-1.0/libusb.h: 1353
 
-LIBUSB_TRANSFER_STALL = (LIBUSB_TRANSFER_CANCELLED + 1)# /usr/include/libusb-1.0/libusb.h: 1125
+LIBUSB_TRANSFER_CANCELLED = (LIBUSB_TRANSFER_TIMED_OUT + 1)# /usr/include/libusb-1.0/libusb.h: 1353
 
-LIBUSB_TRANSFER_NO_DEVICE = (LIBUSB_TRANSFER_STALL + 1)# /usr/include/libusb-1.0/libusb.h: 1125
+LIBUSB_TRANSFER_STALL = (LIBUSB_TRANSFER_CANCELLED + 1)# /usr/include/libusb-1.0/libusb.h: 1353
 
-LIBUSB_TRANSFER_OVERFLOW = (LIBUSB_TRANSFER_NO_DEVICE + 1)# /usr/include/libusb-1.0/libusb.h: 1125
+LIBUSB_TRANSFER_NO_DEVICE = (LIBUSB_TRANSFER_STALL + 1)# /usr/include/libusb-1.0/libusb.h: 1353
 
-enum_libusb_transfer_flags = c_int# /usr/include/libusb-1.0/libusb.h: 1155
+LIBUSB_TRANSFER_OVERFLOW = (LIBUSB_TRANSFER_NO_DEVICE + 1)# /usr/include/libusb-1.0/libusb.h: 1353
 
-LIBUSB_TRANSFER_SHORT_NOT_OK = (1 << 0)# /usr/include/libusb-1.0/libusb.h: 1155
+enum_libusb_transfer_flags = c_int# /usr/include/libusb-1.0/libusb.h: 1383
 
-LIBUSB_TRANSFER_FREE_BUFFER = (1 << 1)# /usr/include/libusb-1.0/libusb.h: 1155
+LIBUSB_TRANSFER_SHORT_NOT_OK = (1 << 0)# /usr/include/libusb-1.0/libusb.h: 1383
 
-LIBUSB_TRANSFER_FREE_TRANSFER = (1 << 2)# /usr/include/libusb-1.0/libusb.h: 1155
+LIBUSB_TRANSFER_FREE_BUFFER = (1 << 1)# /usr/include/libusb-1.0/libusb.h: 1383
 
-LIBUSB_TRANSFER_ADD_ZERO_PACKET = (1 << 3)# /usr/include/libusb-1.0/libusb.h: 1155
+LIBUSB_TRANSFER_FREE_TRANSFER = (1 << 2)# /usr/include/libusb-1.0/libusb.h: 1383
 
-# /usr/include/libusb-1.0/libusb.h: 1199
+LIBUSB_TRANSFER_ADD_ZERO_PACKET = (1 << 3)# /usr/include/libusb-1.0/libusb.h: 1383
+
+# /usr/include/libusb-1.0/libusb.h: 1428
 class struct_libusb_iso_packet_descriptor(Structure):
     pass
 
@@ -1513,11 +1650,11 @@ struct_libusb_iso_packet_descriptor._fields_ = [
     ('status', enum_libusb_transfer_status),
 ]
 
-# /usr/include/libusb-1.0/libusb.h: 1229
+# /usr/include/libusb-1.0/libusb.h: 1458
 class struct_libusb_transfer(Structure):
     pass
 
-libusb_transfer_cb_fn = CFUNCTYPE(UNCHECKED(None), POINTER(struct_libusb_transfer))# /usr/include/libusb-1.0/libusb.h: 1221
+libusb_transfer_cb_fn = CFUNCTYPE(UNCHECKED(None), POINTER(struct_libusb_transfer))# /usr/include/libusb-1.0/libusb.h: 1450
 
 struct_libusb_transfer.__slots__ = [
     'dev_handle',
@@ -1550,379 +1687,471 @@ struct_libusb_transfer._fields_ = [
     ('iso_packet_desc', POINTER(struct_libusb_iso_packet_descriptor)),
 ]
 
-enum_libusb_capability = c_int# /usr/include/libusb-1.0/libusb.h: 1295
+enum_libusb_capability = c_int# /usr/include/libusb-1.0/libusb.h: 1524
 
-LIBUSB_CAP_HAS_CAPABILITY = 0x0000# /usr/include/libusb-1.0/libusb.h: 1295
+LIBUSB_CAP_HAS_CAPABILITY = 0x0000# /usr/include/libusb-1.0/libusb.h: 1524
 
-LIBUSB_CAP_HAS_HOTPLUG = 0x0001# /usr/include/libusb-1.0/libusb.h: 1295
+LIBUSB_CAP_HAS_HOTPLUG = 0x0001# /usr/include/libusb-1.0/libusb.h: 1524
 
-LIBUSB_CAP_HAS_HID_ACCESS = 0x0100# /usr/include/libusb-1.0/libusb.h: 1295
+LIBUSB_CAP_HAS_HID_ACCESS = 0x0100# /usr/include/libusb-1.0/libusb.h: 1524
 
-LIBUSB_CAP_SUPPORTS_DETACH_KERNEL_DRIVER = 0x0101# /usr/include/libusb-1.0/libusb.h: 1295
+LIBUSB_CAP_SUPPORTS_DETACH_KERNEL_DRIVER = 0x0101# /usr/include/libusb-1.0/libusb.h: 1524
 
-enum_libusb_log_level = c_int# /usr/include/libusb-1.0/libusb.h: 1316
+enum_libusb_log_level = c_int# /usr/include/libusb-1.0/libusb.h: 1545
 
-LIBUSB_LOG_LEVEL_NONE = 0# /usr/include/libusb-1.0/libusb.h: 1316
+LIBUSB_LOG_LEVEL_NONE = 0# /usr/include/libusb-1.0/libusb.h: 1545
 
-LIBUSB_LOG_LEVEL_ERROR = 1# /usr/include/libusb-1.0/libusb.h: 1316
+LIBUSB_LOG_LEVEL_ERROR = 1# /usr/include/libusb-1.0/libusb.h: 1545
 
-LIBUSB_LOG_LEVEL_WARNING = 2# /usr/include/libusb-1.0/libusb.h: 1316
+LIBUSB_LOG_LEVEL_WARNING = 2# /usr/include/libusb-1.0/libusb.h: 1545
 
-LIBUSB_LOG_LEVEL_INFO = 3# /usr/include/libusb-1.0/libusb.h: 1316
+LIBUSB_LOG_LEVEL_INFO = 3# /usr/include/libusb-1.0/libusb.h: 1545
 
-LIBUSB_LOG_LEVEL_DEBUG = 4# /usr/include/libusb-1.0/libusb.h: 1316
+LIBUSB_LOG_LEVEL_DEBUG = 4# /usr/include/libusb-1.0/libusb.h: 1545
 
-enum_libusb_log_cb_mode = c_int# /usr/include/libusb-1.0/libusb.h: 1340
+enum_libusb_log_cb_mode = c_int# /usr/include/libusb-1.0/libusb.h: 1569
 
-LIBUSB_LOG_CB_GLOBAL = (1 << 0)# /usr/include/libusb-1.0/libusb.h: 1340
+LIBUSB_LOG_CB_GLOBAL = (1 << 0)# /usr/include/libusb-1.0/libusb.h: 1569
 
-LIBUSB_LOG_CB_CONTEXT = (1 << 1)# /usr/include/libusb-1.0/libusb.h: 1340
+LIBUSB_LOG_CB_CONTEXT = (1 << 1)# /usr/include/libusb-1.0/libusb.h: 1569
 
-libusb_log_cb = CFUNCTYPE(UNCHECKED(None), POINTER(libusb_context), enum_libusb_log_level, String)# /usr/include/libusb-1.0/libusb.h: 1359
+enum_libusb_option = c_int# /usr/include/libusb-1.0/libusb.h: 1580
 
-# /usr/include/libusb-1.0/libusb.h: 1362
+LIBUSB_OPTION_LOG_LEVEL = 0# /usr/include/libusb-1.0/libusb.h: 1580
+
+LIBUSB_OPTION_USE_USBDK = 1# /usr/include/libusb-1.0/libusb.h: 1580
+
+LIBUSB_OPTION_NO_DEVICE_DISCOVERY = 2# /usr/include/libusb-1.0/libusb.h: 1580
+
+LIBUSB_OPTION_LOG_CB = 3# /usr/include/libusb-1.0/libusb.h: 1580
+
+LIBUSB_OPTION_MAX = 4# /usr/include/libusb-1.0/libusb.h: 1580
+
+libusb_log_cb = CFUNCTYPE(UNCHECKED(None), POINTER(libusb_context), enum_libusb_log_level, String)# /usr/include/libusb-1.0/libusb.h: 1661
+
+# /usr/include/libusb-1.0/libusb.h: 1672
+class union_anon_16(Union):
+    pass
+
+union_anon_16.__slots__ = [
+    'ival',
+    'log_cbval',
+]
+union_anon_16._fields_ = [
+    ('ival', c_int),
+    ('log_cbval', libusb_log_cb),
+]
+
+# /usr/include/libusb-1.0/libusb.h: 1668
+class struct_libusb_init_option(Structure):
+    pass
+
+struct_libusb_init_option.__slots__ = [
+    'option',
+    'value',
+]
+struct_libusb_init_option._fields_ = [
+    ('option', enum_libusb_option),
+    ('value', union_anon_16),
+]
+
+# /usr/include/libusb-1.0/libusb.h: 1678
 if _libs["usb-1.0"].has("libusb_init", "cdecl"):
     libusb_init = _libs["usb-1.0"].get("libusb_init", "cdecl")
     libusb_init.argtypes = [POINTER(POINTER(libusb_context))]
     libusb_init.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1363
+# /usr/include/libusb-1.0/libusb.h: 1679
+if _libs["usb-1.0"].has("libusb_init_context", "cdecl"):
+    libusb_init_context = _libs["usb-1.0"].get("libusb_init_context", "cdecl")
+    libusb_init_context.argtypes = [POINTER(POINTER(libusb_context)), POINTER(struct_libusb_init_option), c_int]
+    libusb_init_context.restype = c_int
+
+# /usr/include/libusb-1.0/libusb.h: 1680
 if _libs["usb-1.0"].has("libusb_exit", "cdecl"):
     libusb_exit = _libs["usb-1.0"].get("libusb_exit", "cdecl")
     libusb_exit.argtypes = [POINTER(libusb_context)]
     libusb_exit.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1365
+# /usr/include/libusb-1.0/libusb.h: 1681
 if _libs["usb-1.0"].has("libusb_set_debug", "cdecl"):
     libusb_set_debug = _libs["usb-1.0"].get("libusb_set_debug", "cdecl")
     libusb_set_debug.argtypes = [POINTER(libusb_context), c_int]
     libusb_set_debug.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1366
+# /usr/include/libusb-1.0/libusb.h: 1683
 if _libs["usb-1.0"].has("libusb_set_log_cb", "cdecl"):
     libusb_set_log_cb = _libs["usb-1.0"].get("libusb_set_log_cb", "cdecl")
     libusb_set_log_cb.argtypes = [POINTER(libusb_context), libusb_log_cb, c_int]
     libusb_set_log_cb.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1367
+# /usr/include/libusb-1.0/libusb.h: 1684
 if _libs["usb-1.0"].has("libusb_get_version", "cdecl"):
     libusb_get_version = _libs["usb-1.0"].get("libusb_get_version", "cdecl")
     libusb_get_version.argtypes = []
     libusb_get_version.restype = POINTER(struct_libusb_version)
 
-# /usr/include/libusb-1.0/libusb.h: 1368
+# /usr/include/libusb-1.0/libusb.h: 1685
 if _libs["usb-1.0"].has("libusb_has_capability", "cdecl"):
     libusb_has_capability = _libs["usb-1.0"].get("libusb_has_capability", "cdecl")
     libusb_has_capability.argtypes = [uint32_t]
     libusb_has_capability.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1369
+# /usr/include/libusb-1.0/libusb.h: 1686
 if _libs["usb-1.0"].has("libusb_error_name", "cdecl"):
     libusb_error_name = _libs["usb-1.0"].get("libusb_error_name", "cdecl")
     libusb_error_name.argtypes = [c_int]
     libusb_error_name.restype = c_char_p
 
-# /usr/include/libusb-1.0/libusb.h: 1370
+# /usr/include/libusb-1.0/libusb.h: 1687
 if _libs["usb-1.0"].has("libusb_setlocale", "cdecl"):
     libusb_setlocale = _libs["usb-1.0"].get("libusb_setlocale", "cdecl")
     libusb_setlocale.argtypes = [String]
     libusb_setlocale.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1371
+# /usr/include/libusb-1.0/libusb.h: 1688
 if _libs["usb-1.0"].has("libusb_strerror", "cdecl"):
     libusb_strerror = _libs["usb-1.0"].get("libusb_strerror", "cdecl")
     libusb_strerror.argtypes = [c_int]
     libusb_strerror.restype = c_char_p
 
-# /usr/include/libusb-1.0/libusb.h: 1373
+# /usr/include/libusb-1.0/libusb.h: 1690
 if _libs["usb-1.0"].has("libusb_get_device_list", "cdecl"):
     libusb_get_device_list = _libs["usb-1.0"].get("libusb_get_device_list", "cdecl")
     libusb_get_device_list.argtypes = [POINTER(libusb_context), POINTER(POINTER(POINTER(libusb_device)))]
     libusb_get_device_list.restype = c_ptrdiff_t
 
-# /usr/include/libusb-1.0/libusb.h: 1375
+# /usr/include/libusb-1.0/libusb.h: 1692
 if _libs["usb-1.0"].has("libusb_free_device_list", "cdecl"):
     libusb_free_device_list = _libs["usb-1.0"].get("libusb_free_device_list", "cdecl")
     libusb_free_device_list.argtypes = [POINTER(POINTER(libusb_device)), c_int]
     libusb_free_device_list.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1377
+# /usr/include/libusb-1.0/libusb.h: 1694
 if _libs["usb-1.0"].has("libusb_ref_device", "cdecl"):
     libusb_ref_device = _libs["usb-1.0"].get("libusb_ref_device", "cdecl")
     libusb_ref_device.argtypes = [POINTER(libusb_device)]
     libusb_ref_device.restype = POINTER(libusb_device)
 
-# /usr/include/libusb-1.0/libusb.h: 1378
+# /usr/include/libusb-1.0/libusb.h: 1695
 if _libs["usb-1.0"].has("libusb_unref_device", "cdecl"):
     libusb_unref_device = _libs["usb-1.0"].get("libusb_unref_device", "cdecl")
     libusb_unref_device.argtypes = [POINTER(libusb_device)]
     libusb_unref_device.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1380
+# /usr/include/libusb-1.0/libusb.h: 1697
 if _libs["usb-1.0"].has("libusb_get_configuration", "cdecl"):
     libusb_get_configuration = _libs["usb-1.0"].get("libusb_get_configuration", "cdecl")
     libusb_get_configuration.argtypes = [POINTER(libusb_device_handle), POINTER(c_int)]
     libusb_get_configuration.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1382
+# /usr/include/libusb-1.0/libusb.h: 1699
 if _libs["usb-1.0"].has("libusb_get_device_descriptor", "cdecl"):
     libusb_get_device_descriptor = _libs["usb-1.0"].get("libusb_get_device_descriptor", "cdecl")
     libusb_get_device_descriptor.argtypes = [POINTER(libusb_device), POINTER(struct_libusb_device_descriptor)]
     libusb_get_device_descriptor.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1384
+# /usr/include/libusb-1.0/libusb.h: 1701
 if _libs["usb-1.0"].has("libusb_get_active_config_descriptor", "cdecl"):
     libusb_get_active_config_descriptor = _libs["usb-1.0"].get("libusb_get_active_config_descriptor", "cdecl")
     libusb_get_active_config_descriptor.argtypes = [POINTER(libusb_device), POINTER(POINTER(struct_libusb_config_descriptor))]
     libusb_get_active_config_descriptor.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1386
+# /usr/include/libusb-1.0/libusb.h: 1703
 if _libs["usb-1.0"].has("libusb_get_config_descriptor", "cdecl"):
     libusb_get_config_descriptor = _libs["usb-1.0"].get("libusb_get_config_descriptor", "cdecl")
     libusb_get_config_descriptor.argtypes = [POINTER(libusb_device), uint8_t, POINTER(POINTER(struct_libusb_config_descriptor))]
     libusb_get_config_descriptor.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1388
+# /usr/include/libusb-1.0/libusb.h: 1705
 if _libs["usb-1.0"].has("libusb_get_config_descriptor_by_value", "cdecl"):
     libusb_get_config_descriptor_by_value = _libs["usb-1.0"].get("libusb_get_config_descriptor_by_value", "cdecl")
     libusb_get_config_descriptor_by_value.argtypes = [POINTER(libusb_device), uint8_t, POINTER(POINTER(struct_libusb_config_descriptor))]
     libusb_get_config_descriptor_by_value.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1390
+# /usr/include/libusb-1.0/libusb.h: 1707
 if _libs["usb-1.0"].has("libusb_free_config_descriptor", "cdecl"):
     libusb_free_config_descriptor = _libs["usb-1.0"].get("libusb_free_config_descriptor", "cdecl")
     libusb_free_config_descriptor.argtypes = [POINTER(struct_libusb_config_descriptor)]
     libusb_free_config_descriptor.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1392
+# /usr/include/libusb-1.0/libusb.h: 1709
 if _libs["usb-1.0"].has("libusb_get_ss_endpoint_companion_descriptor", "cdecl"):
     libusb_get_ss_endpoint_companion_descriptor = _libs["usb-1.0"].get("libusb_get_ss_endpoint_companion_descriptor", "cdecl")
     libusb_get_ss_endpoint_companion_descriptor.argtypes = [POINTER(libusb_context), POINTER(struct_libusb_endpoint_descriptor), POINTER(POINTER(struct_libusb_ss_endpoint_companion_descriptor))]
     libusb_get_ss_endpoint_companion_descriptor.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1396
+# /usr/include/libusb-1.0/libusb.h: 1713
 if _libs["usb-1.0"].has("libusb_free_ss_endpoint_companion_descriptor", "cdecl"):
     libusb_free_ss_endpoint_companion_descriptor = _libs["usb-1.0"].get("libusb_free_ss_endpoint_companion_descriptor", "cdecl")
     libusb_free_ss_endpoint_companion_descriptor.argtypes = [POINTER(struct_libusb_ss_endpoint_companion_descriptor)]
     libusb_free_ss_endpoint_companion_descriptor.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1398
+# /usr/include/libusb-1.0/libusb.h: 1715
 if _libs["usb-1.0"].has("libusb_get_bos_descriptor", "cdecl"):
     libusb_get_bos_descriptor = _libs["usb-1.0"].get("libusb_get_bos_descriptor", "cdecl")
     libusb_get_bos_descriptor.argtypes = [POINTER(libusb_device_handle), POINTER(POINTER(struct_libusb_bos_descriptor))]
     libusb_get_bos_descriptor.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1400
+# /usr/include/libusb-1.0/libusb.h: 1717
 if _libs["usb-1.0"].has("libusb_free_bos_descriptor", "cdecl"):
     libusb_free_bos_descriptor = _libs["usb-1.0"].get("libusb_free_bos_descriptor", "cdecl")
     libusb_free_bos_descriptor.argtypes = [POINTER(struct_libusb_bos_descriptor)]
     libusb_free_bos_descriptor.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1401
+# /usr/include/libusb-1.0/libusb.h: 1718
 if _libs["usb-1.0"].has("libusb_get_usb_2_0_extension_descriptor", "cdecl"):
     libusb_get_usb_2_0_extension_descriptor = _libs["usb-1.0"].get("libusb_get_usb_2_0_extension_descriptor", "cdecl")
     libusb_get_usb_2_0_extension_descriptor.argtypes = [POINTER(libusb_context), POINTER(struct_libusb_bos_dev_capability_descriptor), POINTER(POINTER(struct_libusb_usb_2_0_extension_descriptor))]
     libusb_get_usb_2_0_extension_descriptor.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1405
+# /usr/include/libusb-1.0/libusb.h: 1722
 if _libs["usb-1.0"].has("libusb_free_usb_2_0_extension_descriptor", "cdecl"):
     libusb_free_usb_2_0_extension_descriptor = _libs["usb-1.0"].get("libusb_free_usb_2_0_extension_descriptor", "cdecl")
     libusb_free_usb_2_0_extension_descriptor.argtypes = [POINTER(struct_libusb_usb_2_0_extension_descriptor)]
     libusb_free_usb_2_0_extension_descriptor.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1407
+# /usr/include/libusb-1.0/libusb.h: 1724
 if _libs["usb-1.0"].has("libusb_get_ss_usb_device_capability_descriptor", "cdecl"):
     libusb_get_ss_usb_device_capability_descriptor = _libs["usb-1.0"].get("libusb_get_ss_usb_device_capability_descriptor", "cdecl")
     libusb_get_ss_usb_device_capability_descriptor.argtypes = [POINTER(libusb_context), POINTER(struct_libusb_bos_dev_capability_descriptor), POINTER(POINTER(struct_libusb_ss_usb_device_capability_descriptor))]
     libusb_get_ss_usb_device_capability_descriptor.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1411
+# /usr/include/libusb-1.0/libusb.h: 1728
 if _libs["usb-1.0"].has("libusb_free_ss_usb_device_capability_descriptor", "cdecl"):
     libusb_free_ss_usb_device_capability_descriptor = _libs["usb-1.0"].get("libusb_free_ss_usb_device_capability_descriptor", "cdecl")
     libusb_free_ss_usb_device_capability_descriptor.argtypes = [POINTER(struct_libusb_ss_usb_device_capability_descriptor)]
     libusb_free_ss_usb_device_capability_descriptor.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1413
+# /usr/include/libusb-1.0/libusb.h: 1730
+if _libs["usb-1.0"].has("libusb_get_ssplus_usb_device_capability_descriptor", "cdecl"):
+    libusb_get_ssplus_usb_device_capability_descriptor = _libs["usb-1.0"].get("libusb_get_ssplus_usb_device_capability_descriptor", "cdecl")
+    libusb_get_ssplus_usb_device_capability_descriptor.argtypes = [POINTER(libusb_context), POINTER(struct_libusb_bos_dev_capability_descriptor), POINTER(POINTER(struct_libusb_ssplus_usb_device_capability_descriptor))]
+    libusb_get_ssplus_usb_device_capability_descriptor.restype = c_int
+
+# /usr/include/libusb-1.0/libusb.h: 1734
+if _libs["usb-1.0"].has("libusb_free_ssplus_usb_device_capability_descriptor", "cdecl"):
+    libusb_free_ssplus_usb_device_capability_descriptor = _libs["usb-1.0"].get("libusb_free_ssplus_usb_device_capability_descriptor", "cdecl")
+    libusb_free_ssplus_usb_device_capability_descriptor.argtypes = [POINTER(struct_libusb_ssplus_usb_device_capability_descriptor)]
+    libusb_free_ssplus_usb_device_capability_descriptor.restype = None
+
+# /usr/include/libusb-1.0/libusb.h: 1736
 if _libs["usb-1.0"].has("libusb_get_container_id_descriptor", "cdecl"):
     libusb_get_container_id_descriptor = _libs["usb-1.0"].get("libusb_get_container_id_descriptor", "cdecl")
     libusb_get_container_id_descriptor.argtypes = [POINTER(libusb_context), POINTER(struct_libusb_bos_dev_capability_descriptor), POINTER(POINTER(struct_libusb_container_id_descriptor))]
     libusb_get_container_id_descriptor.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1416
+# /usr/include/libusb-1.0/libusb.h: 1739
 if _libs["usb-1.0"].has("libusb_free_container_id_descriptor", "cdecl"):
     libusb_free_container_id_descriptor = _libs["usb-1.0"].get("libusb_free_container_id_descriptor", "cdecl")
     libusb_free_container_id_descriptor.argtypes = [POINTER(struct_libusb_container_id_descriptor)]
     libusb_free_container_id_descriptor.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1418
+# /usr/include/libusb-1.0/libusb.h: 1741
+if _libs["usb-1.0"].has("libusb_get_platform_descriptor", "cdecl"):
+    libusb_get_platform_descriptor = _libs["usb-1.0"].get("libusb_get_platform_descriptor", "cdecl")
+    libusb_get_platform_descriptor.argtypes = [POINTER(libusb_context), POINTER(struct_libusb_bos_dev_capability_descriptor), POINTER(POINTER(struct_libusb_platform_descriptor))]
+    libusb_get_platform_descriptor.restype = c_int
+
+# /usr/include/libusb-1.0/libusb.h: 1744
+if _libs["usb-1.0"].has("libusb_free_platform_descriptor", "cdecl"):
+    libusb_free_platform_descriptor = _libs["usb-1.0"].get("libusb_free_platform_descriptor", "cdecl")
+    libusb_free_platform_descriptor.argtypes = [POINTER(struct_libusb_platform_descriptor)]
+    libusb_free_platform_descriptor.restype = None
+
+# /usr/include/libusb-1.0/libusb.h: 1746
 if _libs["usb-1.0"].has("libusb_get_bus_number", "cdecl"):
     libusb_get_bus_number = _libs["usb-1.0"].get("libusb_get_bus_number", "cdecl")
     libusb_get_bus_number.argtypes = [POINTER(libusb_device)]
     libusb_get_bus_number.restype = uint8_t
 
-# /usr/include/libusb-1.0/libusb.h: 1419
+# /usr/include/libusb-1.0/libusb.h: 1747
 if _libs["usb-1.0"].has("libusb_get_port_number", "cdecl"):
     libusb_get_port_number = _libs["usb-1.0"].get("libusb_get_port_number", "cdecl")
     libusb_get_port_number.argtypes = [POINTER(libusb_device)]
     libusb_get_port_number.restype = uint8_t
 
-# /usr/include/libusb-1.0/libusb.h: 1420
+# /usr/include/libusb-1.0/libusb.h: 1748
 if _libs["usb-1.0"].has("libusb_get_port_numbers", "cdecl"):
     libusb_get_port_numbers = _libs["usb-1.0"].get("libusb_get_port_numbers", "cdecl")
     libusb_get_port_numbers.argtypes = [POINTER(libusb_device), POINTER(uint8_t), c_int]
     libusb_get_port_numbers.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1422
+# /usr/include/libusb-1.0/libusb.h: 1750
 if _libs["usb-1.0"].has("libusb_get_port_path", "cdecl"):
     libusb_get_port_path = _libs["usb-1.0"].get("libusb_get_port_path", "cdecl")
     libusb_get_port_path.argtypes = [POINTER(libusb_context), POINTER(libusb_device), POINTER(uint8_t), uint8_t]
     libusb_get_port_path.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1423
+# /usr/include/libusb-1.0/libusb.h: 1751
 if _libs["usb-1.0"].has("libusb_get_parent", "cdecl"):
     libusb_get_parent = _libs["usb-1.0"].get("libusb_get_parent", "cdecl")
     libusb_get_parent.argtypes = [POINTER(libusb_device)]
     libusb_get_parent.restype = POINTER(libusb_device)
 
-# /usr/include/libusb-1.0/libusb.h: 1424
+# /usr/include/libusb-1.0/libusb.h: 1752
 if _libs["usb-1.0"].has("libusb_get_device_address", "cdecl"):
     libusb_get_device_address = _libs["usb-1.0"].get("libusb_get_device_address", "cdecl")
     libusb_get_device_address.argtypes = [POINTER(libusb_device)]
     libusb_get_device_address.restype = uint8_t
 
-# /usr/include/libusb-1.0/libusb.h: 1425
+# /usr/include/libusb-1.0/libusb.h: 1753
 if _libs["usb-1.0"].has("libusb_get_device_speed", "cdecl"):
     libusb_get_device_speed = _libs["usb-1.0"].get("libusb_get_device_speed", "cdecl")
     libusb_get_device_speed.argtypes = [POINTER(libusb_device)]
     libusb_get_device_speed.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1426
+# /usr/include/libusb-1.0/libusb.h: 1754
 if _libs["usb-1.0"].has("libusb_get_max_packet_size", "cdecl"):
     libusb_get_max_packet_size = _libs["usb-1.0"].get("libusb_get_max_packet_size", "cdecl")
     libusb_get_max_packet_size.argtypes = [POINTER(libusb_device), c_ubyte]
     libusb_get_max_packet_size.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1428
+# /usr/include/libusb-1.0/libusb.h: 1756
 if _libs["usb-1.0"].has("libusb_get_max_iso_packet_size", "cdecl"):
     libusb_get_max_iso_packet_size = _libs["usb-1.0"].get("libusb_get_max_iso_packet_size", "cdecl")
     libusb_get_max_iso_packet_size.argtypes = [POINTER(libusb_device), c_ubyte]
     libusb_get_max_iso_packet_size.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1431
+# /usr/include/libusb-1.0/libusb.h: 1758
+if _libs["usb-1.0"].has("libusb_get_max_alt_packet_size", "cdecl"):
+    libusb_get_max_alt_packet_size = _libs["usb-1.0"].get("libusb_get_max_alt_packet_size", "cdecl")
+    libusb_get_max_alt_packet_size.argtypes = [POINTER(libusb_device), c_int, c_int, c_ubyte]
+    libusb_get_max_alt_packet_size.restype = c_int
+
+# /usr/include/libusb-1.0/libusb.h: 1761
+if _libs["usb-1.0"].has("libusb_get_interface_association_descriptors", "cdecl"):
+    libusb_get_interface_association_descriptors = _libs["usb-1.0"].get("libusb_get_interface_association_descriptors", "cdecl")
+    libusb_get_interface_association_descriptors.argtypes = [POINTER(libusb_device), uint8_t, POINTER(POINTER(struct_libusb_interface_association_descriptor_array))]
+    libusb_get_interface_association_descriptors.restype = c_int
+
+# /usr/include/libusb-1.0/libusb.h: 1763
+if _libs["usb-1.0"].has("libusb_get_active_interface_association_descriptors", "cdecl"):
+    libusb_get_active_interface_association_descriptors = _libs["usb-1.0"].get("libusb_get_active_interface_association_descriptors", "cdecl")
+    libusb_get_active_interface_association_descriptors.argtypes = [POINTER(libusb_device), POINTER(POINTER(struct_libusb_interface_association_descriptor_array))]
+    libusb_get_active_interface_association_descriptors.restype = c_int
+
+# /usr/include/libusb-1.0/libusb.h: 1765
+if _libs["usb-1.0"].has("libusb_free_interface_association_descriptors", "cdecl"):
+    libusb_free_interface_association_descriptors = _libs["usb-1.0"].get("libusb_free_interface_association_descriptors", "cdecl")
+    libusb_free_interface_association_descriptors.argtypes = [POINTER(struct_libusb_interface_association_descriptor_array)]
+    libusb_free_interface_association_descriptors.restype = None
+
+# /usr/include/libusb-1.0/libusb.h: 1768
 if _libs["usb-1.0"].has("libusb_wrap_sys_device", "cdecl"):
     libusb_wrap_sys_device = _libs["usb-1.0"].get("libusb_wrap_sys_device", "cdecl")
     libusb_wrap_sys_device.argtypes = [POINTER(libusb_context), intptr_t, POINTER(POINTER(libusb_device_handle))]
     libusb_wrap_sys_device.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1432
+# /usr/include/libusb-1.0/libusb.h: 1769
 if _libs["usb-1.0"].has("libusb_open", "cdecl"):
     libusb_open = _libs["usb-1.0"].get("libusb_open", "cdecl")
     libusb_open.argtypes = [POINTER(libusb_device), POINTER(POINTER(libusb_device_handle))]
     libusb_open.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1433
+# /usr/include/libusb-1.0/libusb.h: 1770
 if _libs["usb-1.0"].has("libusb_close", "cdecl"):
     libusb_close = _libs["usb-1.0"].get("libusb_close", "cdecl")
     libusb_close.argtypes = [POINTER(libusb_device_handle)]
     libusb_close.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1434
+# /usr/include/libusb-1.0/libusb.h: 1771
 if _libs["usb-1.0"].has("libusb_get_device", "cdecl"):
     libusb_get_device = _libs["usb-1.0"].get("libusb_get_device", "cdecl")
     libusb_get_device.argtypes = [POINTER(libusb_device_handle)]
     libusb_get_device.restype = POINTER(libusb_device)
 
-# /usr/include/libusb-1.0/libusb.h: 1436
+# /usr/include/libusb-1.0/libusb.h: 1773
 if _libs["usb-1.0"].has("libusb_set_configuration", "cdecl"):
     libusb_set_configuration = _libs["usb-1.0"].get("libusb_set_configuration", "cdecl")
     libusb_set_configuration.argtypes = [POINTER(libusb_device_handle), c_int]
     libusb_set_configuration.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1438
+# /usr/include/libusb-1.0/libusb.h: 1775
 if _libs["usb-1.0"].has("libusb_claim_interface", "cdecl"):
     libusb_claim_interface = _libs["usb-1.0"].get("libusb_claim_interface", "cdecl")
     libusb_claim_interface.argtypes = [POINTER(libusb_device_handle), c_int]
     libusb_claim_interface.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1440
+# /usr/include/libusb-1.0/libusb.h: 1777
 if _libs["usb-1.0"].has("libusb_release_interface", "cdecl"):
     libusb_release_interface = _libs["usb-1.0"].get("libusb_release_interface", "cdecl")
     libusb_release_interface.argtypes = [POINTER(libusb_device_handle), c_int]
     libusb_release_interface.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1443
+# /usr/include/libusb-1.0/libusb.h: 1780
 if _libs["usb-1.0"].has("libusb_open_device_with_vid_pid", "cdecl"):
     libusb_open_device_with_vid_pid = _libs["usb-1.0"].get("libusb_open_device_with_vid_pid", "cdecl")
     libusb_open_device_with_vid_pid.argtypes = [POINTER(libusb_context), uint16_t, uint16_t]
     libusb_open_device_with_vid_pid.restype = POINTER(libusb_device_handle)
 
-# /usr/include/libusb-1.0/libusb.h: 1446
+# /usr/include/libusb-1.0/libusb.h: 1783
 if _libs["usb-1.0"].has("libusb_set_interface_alt_setting", "cdecl"):
     libusb_set_interface_alt_setting = _libs["usb-1.0"].get("libusb_set_interface_alt_setting", "cdecl")
     libusb_set_interface_alt_setting.argtypes = [POINTER(libusb_device_handle), c_int, c_int]
     libusb_set_interface_alt_setting.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1448
+# /usr/include/libusb-1.0/libusb.h: 1785
 if _libs["usb-1.0"].has("libusb_clear_halt", "cdecl"):
     libusb_clear_halt = _libs["usb-1.0"].get("libusb_clear_halt", "cdecl")
     libusb_clear_halt.argtypes = [POINTER(libusb_device_handle), c_ubyte]
     libusb_clear_halt.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1450
+# /usr/include/libusb-1.0/libusb.h: 1787
 if _libs["usb-1.0"].has("libusb_reset_device", "cdecl"):
     libusb_reset_device = _libs["usb-1.0"].get("libusb_reset_device", "cdecl")
     libusb_reset_device.argtypes = [POINTER(libusb_device_handle)]
     libusb_reset_device.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1452
+# /usr/include/libusb-1.0/libusb.h: 1789
 if _libs["usb-1.0"].has("libusb_alloc_streams", "cdecl"):
     libusb_alloc_streams = _libs["usb-1.0"].get("libusb_alloc_streams", "cdecl")
     libusb_alloc_streams.argtypes = [POINTER(libusb_device_handle), uint32_t, POINTER(c_ubyte), c_int]
     libusb_alloc_streams.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1454
+# /usr/include/libusb-1.0/libusb.h: 1791
 if _libs["usb-1.0"].has("libusb_free_streams", "cdecl"):
     libusb_free_streams = _libs["usb-1.0"].get("libusb_free_streams", "cdecl")
     libusb_free_streams.argtypes = [POINTER(libusb_device_handle), POINTER(c_ubyte), c_int]
     libusb_free_streams.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1457
+# /usr/include/libusb-1.0/libusb.h: 1794
 if _libs["usb-1.0"].has("libusb_dev_mem_alloc", "cdecl"):
     libusb_dev_mem_alloc = _libs["usb-1.0"].get("libusb_dev_mem_alloc", "cdecl")
     libusb_dev_mem_alloc.argtypes = [POINTER(libusb_device_handle), c_size_t]
     libusb_dev_mem_alloc.restype = POINTER(c_ubyte)
 
-# /usr/include/libusb-1.0/libusb.h: 1459
+# /usr/include/libusb-1.0/libusb.h: 1796
 if _libs["usb-1.0"].has("libusb_dev_mem_free", "cdecl"):
     libusb_dev_mem_free = _libs["usb-1.0"].get("libusb_dev_mem_free", "cdecl")
     libusb_dev_mem_free.argtypes = [POINTER(libusb_device_handle), POINTER(c_ubyte), c_size_t]
     libusb_dev_mem_free.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1462
+# /usr/include/libusb-1.0/libusb.h: 1799
 if _libs["usb-1.0"].has("libusb_kernel_driver_active", "cdecl"):
     libusb_kernel_driver_active = _libs["usb-1.0"].get("libusb_kernel_driver_active", "cdecl")
     libusb_kernel_driver_active.argtypes = [POINTER(libusb_device_handle), c_int]
     libusb_kernel_driver_active.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1464
+# /usr/include/libusb-1.0/libusb.h: 1801
 if _libs["usb-1.0"].has("libusb_detach_kernel_driver", "cdecl"):
     libusb_detach_kernel_driver = _libs["usb-1.0"].get("libusb_detach_kernel_driver", "cdecl")
     libusb_detach_kernel_driver.argtypes = [POINTER(libusb_device_handle), c_int]
     libusb_detach_kernel_driver.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1466
+# /usr/include/libusb-1.0/libusb.h: 1803
 if _libs["usb-1.0"].has("libusb_attach_kernel_driver", "cdecl"):
     libusb_attach_kernel_driver = _libs["usb-1.0"].get("libusb_attach_kernel_driver", "cdecl")
     libusb_attach_kernel_driver.argtypes = [POINTER(libusb_device_handle), c_int]
     libusb_attach_kernel_driver.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1468
+# /usr/include/libusb-1.0/libusb.h: 1805
 if _libs["usb-1.0"].has("libusb_set_auto_detach_kernel_driver", "cdecl"):
     libusb_set_auto_detach_kernel_driver = _libs["usb-1.0"].get("libusb_set_auto_detach_kernel_driver", "cdecl")
     libusb_set_auto_detach_kernel_driver.argtypes = [POINTER(libusb_device_handle), c_int]
     libusb_set_auto_detach_kernel_driver.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1536
+# /usr/include/libusb-1.0/libusb.h: 1873
 for _lib in _libs.values():
     try:
         setup = (POINTER(struct_libusb_control_setup)).in_dll(_lib, "setup")
@@ -1930,43 +2159,43 @@ for _lib in _libs.values():
     except:
         pass
 
-# /usr/include/libusb-1.0/libusb.h: 1544
+# /usr/include/libusb-1.0/libusb.h: 1881
 if _libs["usb-1.0"].has("libusb_alloc_transfer", "cdecl"):
     libusb_alloc_transfer = _libs["usb-1.0"].get("libusb_alloc_transfer", "cdecl")
     libusb_alloc_transfer.argtypes = [c_int]
     libusb_alloc_transfer.restype = POINTER(struct_libusb_transfer)
 
-# /usr/include/libusb-1.0/libusb.h: 1545
+# /usr/include/libusb-1.0/libusb.h: 1882
 if _libs["usb-1.0"].has("libusb_submit_transfer", "cdecl"):
     libusb_submit_transfer = _libs["usb-1.0"].get("libusb_submit_transfer", "cdecl")
     libusb_submit_transfer.argtypes = [POINTER(struct_libusb_transfer)]
     libusb_submit_transfer.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1546
+# /usr/include/libusb-1.0/libusb.h: 1883
 if _libs["usb-1.0"].has("libusb_cancel_transfer", "cdecl"):
     libusb_cancel_transfer = _libs["usb-1.0"].get("libusb_cancel_transfer", "cdecl")
     libusb_cancel_transfer.argtypes = [POINTER(struct_libusb_transfer)]
     libusb_cancel_transfer.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1547
+# /usr/include/libusb-1.0/libusb.h: 1884
 if _libs["usb-1.0"].has("libusb_free_transfer", "cdecl"):
     libusb_free_transfer = _libs["usb-1.0"].get("libusb_free_transfer", "cdecl")
     libusb_free_transfer.argtypes = [POINTER(struct_libusb_transfer)]
     libusb_free_transfer.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1548
+# /usr/include/libusb-1.0/libusb.h: 1885
 if _libs["usb-1.0"].has("libusb_transfer_set_stream_id", "cdecl"):
     libusb_transfer_set_stream_id = _libs["usb-1.0"].get("libusb_transfer_set_stream_id", "cdecl")
     libusb_transfer_set_stream_id.argtypes = [POINTER(struct_libusb_transfer), uint32_t]
     libusb_transfer_set_stream_id.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1550
+# /usr/include/libusb-1.0/libusb.h: 1887
 if _libs["usb-1.0"].has("libusb_transfer_get_stream_id", "cdecl"):
     libusb_transfer_get_stream_id = _libs["usb-1.0"].get("libusb_transfer_get_stream_id", "cdecl")
     libusb_transfer_get_stream_id.argtypes = [POINTER(struct_libusb_transfer)]
     libusb_transfer_get_stream_id.restype = uint32_t
 
-# /usr/include/libusb-1.0/libusb.h: 1586
+# /usr/include/libusb-1.0/libusb.h: 1923
 for _lib in _libs.values():
     try:
         setup = (POINTER(struct_libusb_control_setup)).in_dll(_lib, "setup")
@@ -1974,7 +2203,7 @@ for _lib in _libs.values():
     except:
         pass
 
-# /usr/include/libusb-1.0/libusb.h: 1724
+# /usr/include/libusb-1.0/libusb.h: 2061
 for _lib in _libs.values():
     try:
         i = (c_int).in_dll(_lib, "i")
@@ -1982,7 +2211,7 @@ for _lib in _libs.values():
     except:
         pass
 
-# /usr/include/libusb-1.0/libusb.h: 1749
+# /usr/include/libusb-1.0/libusb.h: 2086
 for _lib in _libs.values():
     try:
         i = (c_int).in_dll(_lib, "i")
@@ -1990,7 +2219,7 @@ for _lib in _libs.values():
     except:
         pass
 
-# /usr/include/libusb-1.0/libusb.h: 1750
+# /usr/include/libusb-1.0/libusb.h: 2087
 for _lib in _libs.values():
     try:
         offset = (c_size_t).in_dll(_lib, "offset")
@@ -1998,7 +2227,7 @@ for _lib in _libs.values():
     except:
         pass
 
-# /usr/include/libusb-1.0/libusb.h: 1751
+# /usr/include/libusb-1.0/libusb.h: 2088
 for _lib in _libs.values():
     try:
         _packet = (c_int).in_dll(_lib, "_packet")
@@ -2006,7 +2235,7 @@ for _lib in _libs.values():
     except:
         pass
 
-# /usr/include/libusb-1.0/libusb.h: 1791
+# /usr/include/libusb-1.0/libusb.h: 2128
 for _lib in _libs.values():
     try:
         _packet = (c_int).in_dll(_lib, "_packet")
@@ -2014,127 +2243,127 @@ for _lib in _libs.values():
     except:
         pass
 
-# /usr/include/libusb-1.0/libusb.h: 1808
+# /usr/include/libusb-1.0/libusb.h: 2145
 if _libs["usb-1.0"].has("libusb_control_transfer", "cdecl"):
     libusb_control_transfer = _libs["usb-1.0"].get("libusb_control_transfer", "cdecl")
     libusb_control_transfer.argtypes = [POINTER(libusb_device_handle), uint8_t, uint8_t, uint16_t, uint16_t, POINTER(c_ubyte), uint16_t, c_uint]
     libusb_control_transfer.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1812
+# /usr/include/libusb-1.0/libusb.h: 2149
 if _libs["usb-1.0"].has("libusb_bulk_transfer", "cdecl"):
     libusb_bulk_transfer = _libs["usb-1.0"].get("libusb_bulk_transfer", "cdecl")
     libusb_bulk_transfer.argtypes = [POINTER(libusb_device_handle), c_ubyte, POINTER(c_ubyte), c_int, POINTER(c_int), c_uint]
     libusb_bulk_transfer.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1816
+# /usr/include/libusb-1.0/libusb.h: 2153
 if _libs["usb-1.0"].has("libusb_interrupt_transfer", "cdecl"):
     libusb_interrupt_transfer = _libs["usb-1.0"].get("libusb_interrupt_transfer", "cdecl")
     libusb_interrupt_transfer.argtypes = [POINTER(libusb_device_handle), c_ubyte, POINTER(c_ubyte), c_int, POINTER(c_int), c_uint]
     libusb_interrupt_transfer.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1862
+# /usr/include/libusb-1.0/libusb.h: 2199
 if _libs["usb-1.0"].has("libusb_get_string_descriptor_ascii", "cdecl"):
     libusb_get_string_descriptor_ascii = _libs["usb-1.0"].get("libusb_get_string_descriptor_ascii", "cdecl")
     libusb_get_string_descriptor_ascii.argtypes = [POINTER(libusb_device_handle), uint8_t, POINTER(c_ubyte), c_int]
     libusb_get_string_descriptor_ascii.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1867
+# /usr/include/libusb-1.0/libusb.h: 2204
 if _libs["usb-1.0"].has("libusb_try_lock_events", "cdecl"):
     libusb_try_lock_events = _libs["usb-1.0"].get("libusb_try_lock_events", "cdecl")
     libusb_try_lock_events.argtypes = [POINTER(libusb_context)]
     libusb_try_lock_events.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1868
+# /usr/include/libusb-1.0/libusb.h: 2205
 if _libs["usb-1.0"].has("libusb_lock_events", "cdecl"):
     libusb_lock_events = _libs["usb-1.0"].get("libusb_lock_events", "cdecl")
     libusb_lock_events.argtypes = [POINTER(libusb_context)]
     libusb_lock_events.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1869
+# /usr/include/libusb-1.0/libusb.h: 2206
 if _libs["usb-1.0"].has("libusb_unlock_events", "cdecl"):
     libusb_unlock_events = _libs["usb-1.0"].get("libusb_unlock_events", "cdecl")
     libusb_unlock_events.argtypes = [POINTER(libusb_context)]
     libusb_unlock_events.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1870
+# /usr/include/libusb-1.0/libusb.h: 2207
 if _libs["usb-1.0"].has("libusb_event_handling_ok", "cdecl"):
     libusb_event_handling_ok = _libs["usb-1.0"].get("libusb_event_handling_ok", "cdecl")
     libusb_event_handling_ok.argtypes = [POINTER(libusb_context)]
     libusb_event_handling_ok.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1871
+# /usr/include/libusb-1.0/libusb.h: 2208
 if _libs["usb-1.0"].has("libusb_event_handler_active", "cdecl"):
     libusb_event_handler_active = _libs["usb-1.0"].get("libusb_event_handler_active", "cdecl")
     libusb_event_handler_active.argtypes = [POINTER(libusb_context)]
     libusb_event_handler_active.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1872
+# /usr/include/libusb-1.0/libusb.h: 2209
 if _libs["usb-1.0"].has("libusb_interrupt_event_handler", "cdecl"):
     libusb_interrupt_event_handler = _libs["usb-1.0"].get("libusb_interrupt_event_handler", "cdecl")
     libusb_interrupt_event_handler.argtypes = [POINTER(libusb_context)]
     libusb_interrupt_event_handler.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1873
+# /usr/include/libusb-1.0/libusb.h: 2210
 if _libs["usb-1.0"].has("libusb_lock_event_waiters", "cdecl"):
     libusb_lock_event_waiters = _libs["usb-1.0"].get("libusb_lock_event_waiters", "cdecl")
     libusb_lock_event_waiters.argtypes = [POINTER(libusb_context)]
     libusb_lock_event_waiters.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1874
+# /usr/include/libusb-1.0/libusb.h: 2211
 if _libs["usb-1.0"].has("libusb_unlock_event_waiters", "cdecl"):
     libusb_unlock_event_waiters = _libs["usb-1.0"].get("libusb_unlock_event_waiters", "cdecl")
     libusb_unlock_event_waiters.argtypes = [POINTER(libusb_context)]
     libusb_unlock_event_waiters.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1875
+# /usr/include/libusb-1.0/libusb.h: 2212
 if _libs["usb-1.0"].has("libusb_wait_for_event", "cdecl"):
     libusb_wait_for_event = _libs["usb-1.0"].get("libusb_wait_for_event", "cdecl")
     libusb_wait_for_event.argtypes = [POINTER(libusb_context), POINTER(struct_timeval)]
     libusb_wait_for_event.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1877
+# /usr/include/libusb-1.0/libusb.h: 2214
 if _libs["usb-1.0"].has("libusb_handle_events_timeout", "cdecl"):
     libusb_handle_events_timeout = _libs["usb-1.0"].get("libusb_handle_events_timeout", "cdecl")
     libusb_handle_events_timeout.argtypes = [POINTER(libusb_context), POINTER(struct_timeval)]
     libusb_handle_events_timeout.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1879
+# /usr/include/libusb-1.0/libusb.h: 2216
 if _libs["usb-1.0"].has("libusb_handle_events_timeout_completed", "cdecl"):
     libusb_handle_events_timeout_completed = _libs["usb-1.0"].get("libusb_handle_events_timeout_completed", "cdecl")
     libusb_handle_events_timeout_completed.argtypes = [POINTER(libusb_context), POINTER(struct_timeval), POINTER(c_int)]
     libusb_handle_events_timeout_completed.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1881
+# /usr/include/libusb-1.0/libusb.h: 2218
 if _libs["usb-1.0"].has("libusb_handle_events", "cdecl"):
     libusb_handle_events = _libs["usb-1.0"].get("libusb_handle_events", "cdecl")
     libusb_handle_events.argtypes = [POINTER(libusb_context)]
     libusb_handle_events.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1882
+# /usr/include/libusb-1.0/libusb.h: 2219
 if _libs["usb-1.0"].has("libusb_handle_events_completed", "cdecl"):
     libusb_handle_events_completed = _libs["usb-1.0"].get("libusb_handle_events_completed", "cdecl")
     libusb_handle_events_completed.argtypes = [POINTER(libusb_context), POINTER(c_int)]
     libusb_handle_events_completed.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1883
+# /usr/include/libusb-1.0/libusb.h: 2220
 if _libs["usb-1.0"].has("libusb_handle_events_locked", "cdecl"):
     libusb_handle_events_locked = _libs["usb-1.0"].get("libusb_handle_events_locked", "cdecl")
     libusb_handle_events_locked.argtypes = [POINTER(libusb_context), POINTER(struct_timeval)]
     libusb_handle_events_locked.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1885
+# /usr/include/libusb-1.0/libusb.h: 2222
 if _libs["usb-1.0"].has("libusb_pollfds_handle_timeouts", "cdecl"):
     libusb_pollfds_handle_timeouts = _libs["usb-1.0"].get("libusb_pollfds_handle_timeouts", "cdecl")
     libusb_pollfds_handle_timeouts.argtypes = [POINTER(libusb_context)]
     libusb_pollfds_handle_timeouts.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1886
+# /usr/include/libusb-1.0/libusb.h: 2223
 if _libs["usb-1.0"].has("libusb_get_next_timeout", "cdecl"):
     libusb_get_next_timeout = _libs["usb-1.0"].get("libusb_get_next_timeout", "cdecl")
     libusb_get_next_timeout.argtypes = [POINTER(libusb_context), POINTER(struct_timeval)]
     libusb_get_next_timeout.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 1892
+# /usr/include/libusb-1.0/libusb.h: 2229
 class struct_libusb_pollfd(Structure):
     pass
 
@@ -2147,76 +2376,66 @@ struct_libusb_pollfd._fields_ = [
     ('events', c_short),
 ]
 
-libusb_pollfd_added_cb = CFUNCTYPE(UNCHECKED(None), c_int, c_short, POINTER(None))# /usr/include/libusb-1.0/libusb.h: 1913
+libusb_pollfd_added_cb = CFUNCTYPE(UNCHECKED(None), c_int, c_short, POINTER(None))# /usr/include/libusb-1.0/libusb.h: 2250
 
-libusb_pollfd_removed_cb = CFUNCTYPE(UNCHECKED(None), c_int, POINTER(None))# /usr/include/libusb-1.0/libusb.h: 1925
+libusb_pollfd_removed_cb = CFUNCTYPE(UNCHECKED(None), c_int, POINTER(None))# /usr/include/libusb-1.0/libusb.h: 2262
 
-# /usr/include/libusb-1.0/libusb.h: 1927
+# /usr/include/libusb-1.0/libusb.h: 2264
 if _libs["usb-1.0"].has("libusb_get_pollfds", "cdecl"):
     libusb_get_pollfds = _libs["usb-1.0"].get("libusb_get_pollfds", "cdecl")
     libusb_get_pollfds.argtypes = [POINTER(libusb_context)]
     libusb_get_pollfds.restype = POINTER(POINTER(struct_libusb_pollfd))
 
-# /usr/include/libusb-1.0/libusb.h: 1929
+# /usr/include/libusb-1.0/libusb.h: 2266
 if _libs["usb-1.0"].has("libusb_free_pollfds", "cdecl"):
     libusb_free_pollfds = _libs["usb-1.0"].get("libusb_free_pollfds", "cdecl")
     libusb_free_pollfds.argtypes = [POINTER(POINTER(struct_libusb_pollfd))]
     libusb_free_pollfds.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 1930
+# /usr/include/libusb-1.0/libusb.h: 2267
 if _libs["usb-1.0"].has("libusb_set_pollfd_notifiers", "cdecl"):
     libusb_set_pollfd_notifiers = _libs["usb-1.0"].get("libusb_set_pollfd_notifiers", "cdecl")
     libusb_set_pollfd_notifiers.argtypes = [POINTER(libusb_context), libusb_pollfd_added_cb, libusb_pollfd_removed_cb, POINTER(None)]
     libusb_set_pollfd_notifiers.restype = None
 
-libusb_hotplug_callback_handle = c_int# /usr/include/libusb-1.0/libusb.h: 1946
+libusb_hotplug_callback_handle = c_int# /usr/include/libusb-1.0/libusb.h: 2283
 
-enum_anon_16 = c_int# /usr/include/libusb-1.0/libusb.h: 1961
+enum_anon_17 = c_int# /usr/include/libusb-1.0/libusb.h: 2298
 
-LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED = (1 << 0)# /usr/include/libusb-1.0/libusb.h: 1961
+LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED = (1 << 0)# /usr/include/libusb-1.0/libusb.h: 2298
 
-LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT = (1 << 1)# /usr/include/libusb-1.0/libusb.h: 1961
+LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT = (1 << 1)# /usr/include/libusb-1.0/libusb.h: 2298
 
-libusb_hotplug_event = enum_anon_16# /usr/include/libusb-1.0/libusb.h: 1961
+libusb_hotplug_event = enum_anon_17# /usr/include/libusb-1.0/libusb.h: 2298
 
-enum_anon_17 = c_int# /usr/include/libusb-1.0/libusb.h: 1971
+enum_anon_18 = c_int# /usr/include/libusb-1.0/libusb.h: 2308
 
-LIBUSB_HOTPLUG_ENUMERATE = (1 << 0)# /usr/include/libusb-1.0/libusb.h: 1971
+LIBUSB_HOTPLUG_ENUMERATE = (1 << 0)# /usr/include/libusb-1.0/libusb.h: 2308
 
-libusb_hotplug_flag = enum_anon_17# /usr/include/libusb-1.0/libusb.h: 1971
+libusb_hotplug_flag = enum_anon_18# /usr/include/libusb-1.0/libusb.h: 2308
 
-libusb_hotplug_callback_fn = CFUNCTYPE(UNCHECKED(c_int), POINTER(libusb_context), POINTER(libusb_device), libusb_hotplug_event, POINTER(None))# /usr/include/libusb-1.0/libusb.h: 2003
+libusb_hotplug_callback_fn = CFUNCTYPE(UNCHECKED(c_int), POINTER(libusb_context), POINTER(libusb_device), libusb_hotplug_event, POINTER(None))# /usr/include/libusb-1.0/libusb.h: 2340
 
-# /usr/include/libusb-1.0/libusb.h: 2041
+# /usr/include/libusb-1.0/libusb.h: 2378
 if _libs["usb-1.0"].has("libusb_hotplug_register_callback", "cdecl"):
     libusb_hotplug_register_callback = _libs["usb-1.0"].get("libusb_hotplug_register_callback", "cdecl")
     libusb_hotplug_register_callback.argtypes = [POINTER(libusb_context), c_int, c_int, c_int, c_int, c_int, libusb_hotplug_callback_fn, POINTER(None), POINTER(libusb_hotplug_callback_handle)]
     libusb_hotplug_register_callback.restype = c_int
 
-# /usr/include/libusb-1.0/libusb.h: 2058
+# /usr/include/libusb-1.0/libusb.h: 2395
 if _libs["usb-1.0"].has("libusb_hotplug_deregister_callback", "cdecl"):
     libusb_hotplug_deregister_callback = _libs["usb-1.0"].get("libusb_hotplug_deregister_callback", "cdecl")
     libusb_hotplug_deregister_callback.argtypes = [POINTER(libusb_context), libusb_hotplug_callback_handle]
     libusb_hotplug_deregister_callback.restype = None
 
-# /usr/include/libusb-1.0/libusb.h: 2069
+# /usr/include/libusb-1.0/libusb.h: 2406
 if _libs["usb-1.0"].has("libusb_hotplug_get_user_data", "cdecl"):
     libusb_hotplug_get_user_data = _libs["usb-1.0"].get("libusb_hotplug_get_user_data", "cdecl")
     libusb_hotplug_get_user_data.argtypes = [POINTER(libusb_context), libusb_hotplug_callback_handle]
     libusb_hotplug_get_user_data.restype = POINTER(c_ubyte)
     libusb_hotplug_get_user_data.errcheck = lambda v,*a : cast(v, c_void_p)
 
-enum_libusb_option = c_int# /usr/include/libusb-1.0/libusb.h: 2075
-
-LIBUSB_OPTION_LOG_LEVEL = 0# /usr/include/libusb-1.0/libusb.h: 2075
-
-LIBUSB_OPTION_USE_USBDK = 1# /usr/include/libusb-1.0/libusb.h: 2075
-
-LIBUSB_OPTION_NO_DEVICE_DISCOVERY = 2# /usr/include/libusb-1.0/libusb.h: 2075
-
-LIBUSB_OPTION_MAX = 3# /usr/include/libusb-1.0/libusb.h: 2075
-
-# /usr/include/libusb-1.0/libusb.h: 2132
+# /usr/include/libusb-1.0/libusb.h: 2409
 if _libs["usb-1.0"].has("libusb_set_option", "cdecl"):
     _func = _libs["usb-1.0"].get("libusb_set_option", "cdecl")
     _restype = c_int
@@ -2224,193 +2443,223 @@ if _libs["usb-1.0"].has("libusb_set_option", "cdecl"):
     _argtypes = [POINTER(libusb_context), enum_libusb_option]
     libusb_set_option = _variadic_function(_func,_restype,_argtypes,_errcheck)
 
-# /usr/include/libusb-1.0/libusb.h: 145
+# /usr/include/libusb-1.0/libusb.h: 171
 try:
-    LIBUSB_API_VERSION = 0x01000109
+    LIBUSB_API_VERSION = 0x0100010A
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 148
+# /usr/include/libusb-1.0/libusb.h: 179
 try:
     LIBUSBX_API_VERSION = LIBUSB_API_VERSION
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 294
+# /usr/include/libusb-1.0/libusb.h: 329
 try:
     LIBUSB_DT_DEVICE_SIZE = 18
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 295
+# /usr/include/libusb-1.0/libusb.h: 330
 try:
     LIBUSB_DT_CONFIG_SIZE = 9
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 296
+# /usr/include/libusb-1.0/libusb.h: 331
 try:
     LIBUSB_DT_INTERFACE_SIZE = 9
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 297
+# /usr/include/libusb-1.0/libusb.h: 332
 try:
     LIBUSB_DT_ENDPOINT_SIZE = 7
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 298
+# /usr/include/libusb-1.0/libusb.h: 333
 try:
     LIBUSB_DT_ENDPOINT_AUDIO_SIZE = 9
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 299
+# /usr/include/libusb-1.0/libusb.h: 334
 try:
     LIBUSB_DT_HUB_NONVAR_SIZE = 7
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 300
+# /usr/include/libusb-1.0/libusb.h: 335
 try:
     LIBUSB_DT_SS_ENDPOINT_COMPANION_SIZE = 6
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 301
+# /usr/include/libusb-1.0/libusb.h: 336
 try:
     LIBUSB_DT_BOS_SIZE = 5
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 302
+# /usr/include/libusb-1.0/libusb.h: 337
 try:
     LIBUSB_DT_DEVICE_CAPABILITY_SIZE = 3
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 305
+# /usr/include/libusb-1.0/libusb.h: 338
+try:
+    LIBUSB_DT_INTERFACE_ASSOCIATION_SIZE = 8
+except:
+    pass
+
+# /usr/include/libusb-1.0/libusb.h: 341
 try:
     LIBUSB_BT_USB_2_0_EXTENSION_SIZE = 7
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 306
+# /usr/include/libusb-1.0/libusb.h: 342
 try:
     LIBUSB_BT_SS_USB_DEVICE_CAPABILITY_SIZE = 10
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 307
+# /usr/include/libusb-1.0/libusb.h: 343
+try:
+    LIBUSB_BT_SSPLUS_USB_DEVICE_CAPABILITY_SIZE = 12
+except:
+    pass
+
+# /usr/include/libusb-1.0/libusb.h: 344
 try:
     LIBUSB_BT_CONTAINER_ID_SIZE = 20
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 310
+# /usr/include/libusb-1.0/libusb.h: 345
+try:
+    LIBUSB_BT_PLATFORM_DESCRIPTOR_MIN_SIZE = 20
+except:
+    pass
+
+# /usr/include/libusb-1.0/libusb.h: 348
 try:
     LIBUSB_DT_BOS_MAX_SIZE = (((LIBUSB_DT_BOS_SIZE + LIBUSB_BT_USB_2_0_EXTENSION_SIZE) + LIBUSB_BT_SS_USB_DEVICE_CAPABILITY_SIZE) + LIBUSB_BT_CONTAINER_ID_SIZE)
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 316
+# /usr/include/libusb-1.0/libusb.h: 354
 try:
     LIBUSB_ENDPOINT_ADDRESS_MASK = 0x0f
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 317
+# /usr/include/libusb-1.0/libusb.h: 355
 try:
     LIBUSB_ENDPOINT_DIR_MASK = 0x80
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 331
+# /usr/include/libusb-1.0/libusb.h: 369
 try:
     LIBUSB_TRANSFER_TYPE_MASK = 0x03
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 435
+# /usr/include/libusb-1.0/libusb.h: 473
 try:
     LIBUSB_ISO_SYNC_TYPE_MASK = 0x0c
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 456
+# /usr/include/libusb-1.0/libusb.h: 494
 try:
     LIBUSB_ISO_USAGE_TYPE_MASK = 0x30
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 945
+# /usr/include/libusb-1.0/libusb.h: 1170
 try:
     LIBUSB_CONTROL_SETUP_SIZE = sizeof(struct_libusb_control_setup)
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 1102
+# /usr/include/libusb-1.0/libusb.h: 1330
 try:
     LIBUSB_ERROR_COUNT = 14
 except:
     pass
 
-# /usr/include/libusb-1.0/libusb.h: 1975
-try:
-    LIBUSB_HOTPLUG_NO_FLAGS = 0
-except:
-    pass
-
-# /usr/include/libusb-1.0/libusb.h: 1979
-try:
-    LIBUSB_HOTPLUG_MATCH_ANY = (-1)
-except:
-    pass
-
-# /usr/include/libusb-1.0/libusb.h: 2127
+# /usr/include/libusb-1.0/libusb.h: 1634
 try:
     LIBUSB_OPTION_WEAK_AUTHORITY = LIBUSB_OPTION_NO_DEVICE_DISCOVERY
 except:
     pass
 
-libusb_device_descriptor = struct_libusb_device_descriptor# /usr/include/libusb-1.0/libusb.h: 534
+# /usr/include/libusb-1.0/libusb.h: 2312
+try:
+    LIBUSB_HOTPLUG_NO_FLAGS = 0
+except:
+    pass
 
-libusb_endpoint_descriptor = struct_libusb_endpoint_descriptor# /usr/include/libusb-1.0/libusb.h: 588
+# /usr/include/libusb-1.0/libusb.h: 2316
+try:
+    LIBUSB_HOTPLUG_MATCH_ANY = (-1)
+except:
+    pass
 
-libusb_interface_descriptor = struct_libusb_interface_descriptor# /usr/include/libusb-1.0/libusb.h: 636
+libusb_device_descriptor = struct_libusb_device_descriptor# /usr/include/libusb-1.0/libusb.h: 578
 
-libusb_interface = struct_libusb_interface# /usr/include/libusb-1.0/libusb.h: 684
+libusb_endpoint_descriptor = struct_libusb_endpoint_descriptor# /usr/include/libusb-1.0/libusb.h: 632
 
-libusb_config_descriptor = struct_libusb_config_descriptor# /usr/include/libusb-1.0/libusb.h: 699
+libusb_interface_association_descriptor = struct_libusb_interface_association_descriptor# /usr/include/libusb-1.0/libusb.h: 680
 
-libusb_ss_endpoint_companion_descriptor = struct_libusb_ss_endpoint_companion_descriptor# /usr/include/libusb-1.0/libusb.h: 747
+libusb_interface_association_descriptor_array = struct_libusb_interface_association_descriptor_array# /usr/include/libusb-1.0/libusb.h: 724
 
-libusb_bos_dev_capability_descriptor = struct_libusb_bos_dev_capability_descriptor# /usr/include/libusb-1.0/libusb.h: 776
+libusb_interface_descriptor = struct_libusb_interface_descriptor# /usr/include/libusb-1.0/libusb.h: 739
 
-libusb_bos_descriptor = struct_libusb_bos_descriptor# /usr/include/libusb-1.0/libusb.h: 797
+libusb_interface = struct_libusb_interface# /usr/include/libusb-1.0/libusb.h: 787
 
-libusb_usb_2_0_extension_descriptor = struct_libusb_usb_2_0_extension_descriptor# /usr/include/libusb-1.0/libusb.h: 822
+libusb_config_descriptor = struct_libusb_config_descriptor# /usr/include/libusb-1.0/libusb.h: 802
 
-libusb_ss_usb_device_capability_descriptor = struct_libusb_ss_usb_device_capability_descriptor# /usr/include/libusb-1.0/libusb.h: 848
+libusb_ss_endpoint_companion_descriptor = struct_libusb_ss_endpoint_companion_descriptor# /usr/include/libusb-1.0/libusb.h: 850
 
-libusb_container_id_descriptor = struct_libusb_container_id_descriptor# /usr/include/libusb-1.0/libusb.h: 890
+libusb_bos_dev_capability_descriptor = struct_libusb_bos_dev_capability_descriptor# /usr/include/libusb-1.0/libusb.h: 879
 
-libusb_control_setup = struct_libusb_control_setup# /usr/include/libusb-1.0/libusb.h: 916
+libusb_bos_descriptor = struct_libusb_bos_descriptor# /usr/include/libusb-1.0/libusb.h: 900
 
-libusb_context = struct_libusb_context# /usr/include/libusb-1.0/libusb.h: 949
+libusb_usb_2_0_extension_descriptor = struct_libusb_usb_2_0_extension_descriptor# /usr/include/libusb-1.0/libusb.h: 925
 
-libusb_device = struct_libusb_device# /usr/include/libusb-1.0/libusb.h: 950
+libusb_ss_usb_device_capability_descriptor = struct_libusb_ss_usb_device_capability_descriptor# /usr/include/libusb-1.0/libusb.h: 951
 
-libusb_device_handle = struct_libusb_device_handle# /usr/include/libusb-1.0/libusb.h: 951
+libusb_ssplus_sublink_attribute = struct_libusb_ssplus_sublink_attribute# /usr/include/libusb-1.0/libusb.h: 1029
 
-libusb_version = struct_libusb_version# /usr/include/libusb-1.0/libusb.h: 956
+libusb_ssplus_usb_device_capability_descriptor = struct_libusb_ssplus_usb_device_capability_descriptor# /usr/include/libusb-1.0/libusb.h: 1062
 
-libusb_iso_packet_descriptor = struct_libusb_iso_packet_descriptor# /usr/include/libusb-1.0/libusb.h: 1199
+libusb_container_id_descriptor = struct_libusb_container_id_descriptor# /usr/include/libusb-1.0/libusb.h: 1087
 
-libusb_transfer = struct_libusb_transfer# /usr/include/libusb-1.0/libusb.h: 1229
+libusb_platform_descriptor = struct_libusb_platform_descriptor# /usr/include/libusb-1.0/libusb.h: 1112
 
-libusb_pollfd = struct_libusb_pollfd# /usr/include/libusb-1.0/libusb.h: 1892
+libusb_control_setup = struct_libusb_control_setup# /usr/include/libusb-1.0/libusb.h: 1141
+
+libusb_context = struct_libusb_context# /usr/include/libusb-1.0/libusb.h: 1174
+
+libusb_device = struct_libusb_device# /usr/include/libusb-1.0/libusb.h: 1175
+
+libusb_device_handle = struct_libusb_device_handle# /usr/include/libusb-1.0/libusb.h: 1176
+
+libusb_version = struct_libusb_version# /usr/include/libusb-1.0/libusb.h: 1181
+
+libusb_iso_packet_descriptor = struct_libusb_iso_packet_descriptor# /usr/include/libusb-1.0/libusb.h: 1428
+
+libusb_transfer = struct_libusb_transfer# /usr/include/libusb-1.0/libusb.h: 1458
+
+libusb_init_option = struct_libusb_init_option# /usr/include/libusb-1.0/libusb.h: 1668
+
+libusb_pollfd = struct_libusb_pollfd# /usr/include/libusb-1.0/libusb.h: 2229
 
 # No inserted files
 
