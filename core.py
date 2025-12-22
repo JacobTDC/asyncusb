@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from enum import Enum, IntEnum, Flag, auto
 from functools import partial, wraps
 from itertools import takewhile
+from packaging.version import Version
 from struct import Struct
 from typing import Awaitable, Callable, Generator
 from warnings import warn
@@ -18,6 +19,18 @@ import threading
 
 from . import _libusb
 from ._types import ImmutableStructProxyMeta, ImmutableStructProxy
+
+
+
+def get_libusb_version() -> Version:
+    """Get the version identifier for the installed version of libusb."""
+
+    vptr = _libusb.libusb_get_version()
+    if not vptr:
+        raise RuntimeError("unable to get libusb version")
+
+    vstruct = vptr.contents
+    return Version(f"{vstruct.major}.{vstruct.minor}.{vstruct.micro}.{vstruct.nano}{vstruct.rc}")
 
 
 
@@ -1923,6 +1936,7 @@ class Context:
 
 
 __all__ = [
+    'get_libusb_version',
     'LogLevel',
     'USBClass',
     'RequestTypeFlags',
