@@ -445,14 +445,17 @@ class DeviceHandle:
     """
 
     __slots__ = ('__weakref__', '_obj', '_transfers', '_closing', '_pending',
-                 '_lock')
+                 '_lock', '_context')
 
-    def __init__(self):
+    def __init__(self, context):
+        """Should not be instantiated from user code."""
+
         self._transfers = WeakSet()
         self._pending = _PendingCollection()
         self._obj = POINTER(_libusb.struct_libusb_device_handle)()
         self._closing = False
         self._lock = threading.Lock()
+        self._context = context
 
     def __bool__(self):
         """
@@ -474,6 +477,9 @@ class DeviceHandle:
         # The function used to close the device handle, to be passed back
         # to the Device.open() context manager.
         async def close():
+            if not self._context:
+                raise RuntimeError("invalid context")
+
             with self._lock and self._pending._lock:
                 # Prevent transfers from registering or submitting.
                 self._closing = True
@@ -522,6 +528,12 @@ class DeviceHandle:
     def is_closing(self) -> bool:
         """True if this DeviceHandle is closed or in the process of closing."""
         return self._closing
+
+
+    def get_device(self):
+        """Get the Device this handle is attached to."""
+        return Device(_libusb.libusb_get_device(self._obj).contents,
+                      self._context)
 
 
     def control_transfer(self, bmRequestType: int, bRequest: int, wValue: int,
@@ -988,7 +1000,7 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
         if not self:
             raise RuntimeError("invalid context")
 
-        handle = DeviceHandle()
+        handle = DeviceHandle(self._context)
         close = handle._open(self._obj)
         context = self._context
 
@@ -998,8 +1010,6 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
         try:
             yield handle
         finally:
-            if not context:
-                raise RuntimeError("invalid context")
             await close()
 
     @property
