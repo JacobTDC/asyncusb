@@ -1,6 +1,6 @@
 from abc import ABCMeta
 from contextlib import contextmanager, asynccontextmanager
-from ctypes import POINTER, addressof, byref, c_int, c_ubyte, c_void_p, pointer
+from ctypes import POINTER, addressof, byref, c_int, c_ubyte, pointer
 from dataclasses import dataclass
 from enum import Enum, IntEnum, Flag, auto
 from functools import partial, wraps
@@ -22,15 +22,19 @@ from ._types import ImmutableStructProxyMeta, ImmutableStructProxy
 
 
 
+# Get the current version of libusb in a comparable format for internal use.
+_libusb_version_ptr = _libusb.libusb_get_version()
+if not _libusb_version_ptr:
+    raise RuntimeError("unable to get libusb version")
+_libusb_version = (_libusb_version_ptr.contents.major<<48) + \
+                  (_libusb_version_ptr.contents.minor<<32) + \
+                  (_libusb_version_ptr.contents.micro<<16) + \
+                  (_libusb_version_ptr.contents.nano<<0)
+_libusb_version_string = f"{_libusb_version_ptr.contents.major}.{_libusb_version_ptr.contents.minor}.{_libusb_version_ptr.contents.micro}.{_libusb_version_ptr.contents.nano}{_libusb_version_ptr.contents.rc}"
+
 def get_libusb_version() -> Version:
     """Get the version identifier for the installed version of libusb."""
-
-    vptr = _libusb.libusb_get_version()
-    if not vptr:
-        raise RuntimeError("unable to get libusb version")
-
-    vstruct = vptr.contents
-    return Version(f"{vstruct.major}.{vstruct.minor}.{vstruct.micro}.{vstruct.nano}{vstruct.rc}")
+    return Version(_libusb_version_string)
 
 
 
@@ -485,7 +489,8 @@ class DeviceHandle:
         """
 
         # Open the underlying libusb_device_handle.
-        _catch( _libusb.libusb_open(device_obj, self._obj) )
+        if device_obj is not None:
+            _catch( _libusb.libusb_open(device_obj, self._obj) )
 
         # The function used to close the device handle, to be passed back
         # to the Device.open() context manager.
@@ -1775,17 +1780,33 @@ class Context:
     I/O events are handled in the current/given event loop. Not thread-safe,
     except where otherwise noted.
 
+    Setting the no_discovery option will disable scanning for devices during
+    context initialization/entry.
+
     Context instances are single-entry.
     """
 
     __slots__ = ('_obj', '_loop', '_timed_events', '_devices', '_pollfds',
-                 '_pollfd_added_cb', '_pollfd_removed_cb')
+                 '_pollfd_added_cb', '_pollfd_removed_cb', '_opts')
 
-    def __init__(self, *, loop: asyncio.AbstractEventLoop = None):
+    def __init__(self, *, loop: asyncio.AbstractEventLoop = None,
+                 no_discovery: bool = False):
+
         self._loop = loop or asyncio.get_event_loop()
         self._obj = POINTER(_libusb.struct_libusb_context)()
         self._devices = WeakKeyDictionary()
         self._pollfds = set()
+
+        # Parse libusb context options.
+        opts = []
+
+        if no_discovery:
+            if _libusb_version < 0x10000001b0000: # 1.0.27
+                raise RuntimeError(f"no_discovery option requires libusb version ≥ 1.0.27, found {_libusb_version_string}")
+            opts.append(_libusb.libusb_init_option(
+                option=_libusb.LIBUSB_OPTION_NO_DEVICE_DISCOVERY))
+
+        self._opts = (_libusb.libusb_init_option * len(opts))(*opts)
 
         # Create the pollfd notifier C callbacks. We have to set them as
         # attributes to prevent premature garbage collection.
@@ -1802,8 +1823,12 @@ class Context:
         if getattr(self, '_obj', True):
             raise RuntimeError("cannot reenter single-use Context instance")
 
-        # Inititalize the underlying context.
-        _catch( _libusb.libusb_init(byref(self._obj)) )
+        # Inititalize the underlying context (with options).
+        if _libusb_version >= 0x10000001b0000:   # 1.0.27
+            _catch( _libusb.libusb_init_context(byref(self._obj),
+                                                self._opts, len(self._opts)) )
+        else:
+            _catch( _libusb.libusb_init(byref(self._obj)) )
 
         # Detect if we need to take timeouts into consideration while
         # polling file descriptors.
@@ -1863,9 +1888,8 @@ class Context:
         if hasattr(self, '_timed_events'):
             self._timed_events.cancel()
 
-        # Close the libusb_context and nullify the pointer.
+        # Close the libusb_context.
         _libusb.libusb_exit(self._obj)
-        c_void_p.from_address(addressof(self._obj)).value = None
 
         # Delete the context pointer to signify that this instance is no
         # longer usable (instance is not reusable in order to prevent
@@ -1910,10 +1934,13 @@ class Context:
     def set_debug(self, log_level: LogLevel):
         """
         Set the log level of the underlying libusb_context.
-        See libusb_set_debug.
         """
 
-        _libusb.libusb_set_debug(self._obj, log_level)
+        if _libusb_version < 0x1000000160000: # 1.0.22
+            _libusb.libusb_set_debug(self._obj, log_level)
+        else:
+            _libusb.libusb_set_option(self._obj, _libusb.LIBUSB_OPTION_LOG_LEVEL,
+                                      log_level)
 
     @_in_context
     def get_device_list(self) -> list[Device]:
@@ -1930,6 +1957,43 @@ class Context:
             # Free the device list (and unref the devices, as they have been
             # referenced by the Device class).
             _libusb.libusb_free_device_list(p_list, True)
+
+    @_in_context
+    @asynccontextmanager
+    async def wrap_sys_device(self, sys_dev: int) -> Generator[DeviceHandle, None, None]:
+        """
+        Open a DeviceHandle for I/O from a system device handle.
+
+        This method is most useful in conjunction with setting the
+        no_discovery option on the Context, for systems where the process
+        might not have permission to access all devices, like Android.
+
+        Closing the returned handle will not close the system handle.
+
+        The device will also be added to the result of get_device_list for
+        as long as the handle remains open.
+
+        Device instances created for this handle (from get_device_list or
+        DeviceHandle.get_device) should not be opened. Doing so will most
+        likely raise an error, but could result in undefined behavior.
+        """
+
+        if _libusb_version < 0x1000000170000: # 1.0.23
+            raise RuntimeError(f"wrap_sys_device requires libusb version ≥ 1.0.23, found {_libusb_version_string}")
+
+        handle = DeviceHandle(self)
+        _catch( _libusb.libusb_wrap_sys_device(self._obj, sys_dev,
+                                               handle._obj) )
+        try:
+            close = handle._open(None)
+        except:
+            _libusb.libusb_close(handle._obj)
+            raise
+
+        try:
+            yield handle
+        finally:
+            await close()
 
 
 

@@ -3,33 +3,23 @@ import os
 import sys
 
 
+
 def is_termux():
     return 'TERMUX_VERSION' in os.environ
 
 def has_termux_api():
     return 'TERMUX_API_VERSION' in os.environ
 
-
-def termux_compatibility_hook(path: str):
+def get_termux_device(path: str) -> int:
     """
-    Calls libtermux-api#run_api_command to get a file descriptor and
-    set TERMUX_USB_FD for the Termux patch of libusb; required to
-    manipulate USB devices on Android.
+    Calls libtermux-api#run_api_command to get a file descriptor.
+
+    Useful when combined with core.Context.wrap_sys_device.
     """
 
     run_api_command = ctypes.CDLL('libtermux-api.so').run_api_command
     run_api_command.argtypes = [ ctypes.c_int, ctypes.POINTER(ctypes.c_char_p) ]
     run_api_command.restype = ctypes.c_int
-
-    #os.environ['TERMUX_EXPORT_FD'] = "true"
-
-    #args = f"{sys.argv[0]} Usb -a open --ez request true"
-    #if path is not None:
-    #    args += f" --es device {path}"
-    #elif vendorId is not None and productId is not None:
-    #    args += f" --es vendorId {vendorId} --es productId {productId}"
-    #else:
-    #    raise TypeError("no device provided")
 
     args = f"{sys.argv[0]} Usb -a open --ez request true --es device {path}"
     argb = args.encode('utf8').split(b' ')
@@ -39,12 +29,21 @@ def termux_compatibility_hook(path: str):
     if usb_fd == -1:
         raise RuntimeError("Termux:API returned no file descriptor")
 
-    os.environ['TERMUX_USB_FD'] = str(usb_fd)
+    return usb_fd
+
+def termux_compatibility_hook(path: str):
+    """
+    Set TERMUX_USB_FD for to the result of get_termux_device for the Termux
+    patch of libusb; required to manipulate USB devices on Android.
+    """
+
+    os.environ['TERMUX_USB_FD'] = str(get_termux_device(path))
 
 
 
 __all__ = [
     "is_termux",
     "has_termux_api",
+    "get_termux_device",
     "termux_compatibility_hook",
 ]
