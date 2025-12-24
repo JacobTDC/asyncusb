@@ -1,3 +1,8 @@
+import asyncio
+import collections.abc
+import errno
+import select
+import threading
 from abc import ABCMeta
 from contextlib import contextmanager, asynccontextmanager
 from ctypes import POINTER, addressof, byref, c_int, c_ubyte, pointer
@@ -9,13 +14,7 @@ from packaging.version import Version
 from struct import Struct
 from typing import Awaitable, Callable, Generator
 from warnings import warn
-from weakref import WeakSet, WeakKeyDictionary, WeakValueDictionary, finalize, \
-                    ref
-import asyncio
-import collections.abc
-import errno
-import select
-import threading
+from weakref import WeakSet, WeakValueDictionary, finalize, ref
 
 from . import _libusb
 from ._types import ImmutableStructProxyMeta, ImmutableStructProxy
@@ -482,15 +481,15 @@ class DeviceHandle:
         return hasattr(self, '_obj') and bool(self._obj) and not self._closing
 
 
-    def _open(self, device_obj):
+    def _open(self, device_ref):
         """
-        Open this DeviceHandle. To be called by Device.open().
+        Open this DeviceHandle; to be called by Device.open().
         Calling this from user code is NOT supported.
         """
 
         # Open the underlying libusb_device_handle.
-        if device_obj is not None:
-            _catch( _libusb.libusb_open(device_obj, self._obj) )
+        if device_ref is not None:
+            _catch( _libusb.libusb_open(device_ref, self._obj) )
 
         # The function used to close the device handle, to be passed back
         # to the Device.open() context manager.
@@ -606,7 +605,7 @@ class DeviceHandle:
             case _:
                 _catch(result)
 
-        return bytes(buffer)[:result]
+        return memoryview(buffer)[:result].tobytes()
 
     def bulk_transfer(self, endpoint: Endpoint | int,
                       buffer: collections.abc.Buffer | int,
@@ -662,7 +661,7 @@ class DeviceHandle:
             case _:
                 _catch(result)
 
-        return bytes(buffer)[:transferred.value]
+        return memoryview(buffer)[:transferred.value].tobytes()
 
 
     def kernel_driver_active(self, interface: Interface | int):
@@ -927,28 +926,18 @@ class Speed(IntEnum):
 class _DeviceMeta(ImmutableStructProxyMeta):
     """
     A scoped-singleton meta, where the scope is the address of the
-    provided libusb_device.
+    provided libusb_device (in a Context).
     """
-
-    def __init__(self, name, bases, attrs):
-        super().__init__(name, bases, attrs)
-        self.__instances = WeakValueDictionary()
 
     def __call__(self, device_ref, context):
         key = addressof(device_ref)
 
-        if key in self.__instances:
-            return self.__instances[key]
+        if key in context._devices:
+            return context._devices[key]
         else:
             instance = super().__call__(device_ref, context)
-            self.__instances[key] = instance
+            context._devices[key] = instance
             return instance
-
-    def _discard_instance(self, device_ref):
-        try:
-            del self.__instances[addressof(device_ref)]
-        except KeyError:
-            pass
 
 class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
     """
@@ -957,7 +946,8 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
     For bNumConfigurations, use len(device.configs).
     """
 
-    __slots__ = ('__weakref__', '_obj', '_context', '_configs', '_speed')
+    __slots__ = ('__weakref__', '_obj', '_context', '_configs', '_speed',
+                 '_unref')
     _struct_ = _libusb.struct_libusb_device_descriptor
     _hidden_fields_ = ('bDescriptorType', 'bLength', 'bNumConfigurations')
 
@@ -988,17 +978,15 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
 
         # Schedule finalization within the Context, to be invoked
         # either at garbage collection or upon exiting the context.
-        def finalization(selfref, device_ref):
+        def unref(selfref, device_ref):
             self = selfref()
             if self is not None:
-                Device._discard_instance(device_ref)
                 del self._obj
                 del self._context
 
             _libusb.libusb_unref_device(device_ref)
 
-        context._devices[self] = finalize(self, finalization, ref(self),
-                                          device_ref)
+        self._unref = finalize(self, unref, ref(self), device_ref)
 
     def __repr__(self):
         return f"<{type(self).__module__}.{type(self).__name__} {self.idVendor:0{4}X}:{self.idProduct:0{4}X}>"
@@ -1010,7 +998,7 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
         True if the parent Context hasn't been exited.
         """
 
-        return hasattr(self, '_obj') and bool(self._context)
+        return hasattr(self, '_obj')
 
     @asynccontextmanager
     async def open(self) -> Generator[DeviceHandle, None, None]:
@@ -1020,7 +1008,6 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
 
         handle = DeviceHandle(self._context)
         close = handle._open(self._obj)
-        context = self._context
 
         # Allow garbage collection.
         del self
@@ -1599,14 +1586,11 @@ class Transfer:
             del self._flags
             del self._user_callback
             del self._state
+            del self._dev_handle
 
             # Call the finalizer to free the underlying transfer.
             self._free_obj()
             del self._free_obj
-
-            # Unregister from the device handle.
-            #self._dev_handle._transfers.discard(self)
-            del self._dev_handle
 
 
     @property
@@ -1729,15 +1713,6 @@ class Transfer:
     @buffer.setter
     @_acquire
     def buffer(self, value: TransferBuffer):
-        #if value is None:
-        #    self._transfer._buffer = None
-        #    self._transfer.length = 0
-        #else:
-        #    if not isinstance(value, TransferBuffer):
-        #        raise TypeError("buffer must be a TransferBuffer object or None")
-        #    self._transfer.buffer = value._buffer
-        #    self._transfer.length = len(value)
-
         if not isinstance(value, TransferBuffer) and value is not None:
             raise TypeError("buffer must be a TransferBuffer object or None")
 
@@ -1794,7 +1769,7 @@ class Context:
 
         self._loop = loop or asyncio.get_event_loop()
         self._obj = POINTER(_libusb.struct_libusb_context)()
-        self._devices = WeakKeyDictionary()
+        self._devices = WeakValueDictionary()
         self._pollfds = set()
 
         # Parse libusb context options.
@@ -1870,8 +1845,8 @@ class Context:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Finalize device references.
-        for finalizer in self._devices.values():
-            finalizer()
+        for device in self._devices.values():
+            device._unref()
         self._devices.clear()
 
         # Unset pollfd callbacks.
@@ -1932,9 +1907,7 @@ class Context:
 
     @_in_context
     def set_debug(self, log_level: LogLevel):
-        """
-        Set the log level of the underlying libusb_context.
-        """
+        """Set the log level of the underlying libusb_context."""
 
         if _libusb_version < 0x1000000160000: # 1.0.22
             _libusb.libusb_set_debug(self._obj, log_level)
@@ -1973,7 +1946,7 @@ class Context:
         The device will also be added to the result of get_device_list for
         as long as the handle remains open.
 
-        Device instances created for this handle (from get_device_list or
+        Device instances created for this handle (from
         DeviceHandle.get_device) should not be opened. Doing so will most
         likely raise an error, but could result in undefined behavior.
         """

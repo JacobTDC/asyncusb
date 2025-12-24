@@ -1,10 +1,10 @@
+import asyncio
+import collections.abc
 from ctypes import Structure
 from functools import wraps
 from inspect import signature
 from types import GenericAlias
 from weakref import WeakKeyDictionary, ref
-import asyncio
-import collections.abc
 
 
 
