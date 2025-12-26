@@ -497,7 +497,7 @@ class DeviceHandle:
             if not self._context:
                 raise RuntimeError("invalid context")
 
-            with self._lock and self._pending._lock:
+            with self._lock, self._pending._lock:
                 # Prevent transfers from registering or submitting.
                 self._closing = True
 
