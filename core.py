@@ -3,16 +3,15 @@ import collections.abc
 import errno
 import select
 import threading
-from abc import ABCMeta
+from collections import deque
 from contextlib import contextmanager, asynccontextmanager
 from ctypes import POINTER, addressof, byref, c_int, c_ubyte, pointer
-from dataclasses import dataclass
 from enum import Enum, IntEnum, Flag, auto
-from functools import partial, wraps
+from functools import wraps
 from itertools import takewhile
 from packaging.version import Version
 from struct import Struct
-from typing import Awaitable, Callable, Generator
+from typing import Callable, Generator
 from warnings import warn
 from weakref import WeakSet, WeakValueDictionary, finalize, ref
 
@@ -25,10 +24,10 @@ from ._types import ImmutableStructProxyMeta, ImmutableStructProxy
 _libusb_version_ptr = _libusb.libusb_get_version()
 if not _libusb_version_ptr:
     raise RuntimeError("unable to get libusb version")
-_libusb_version = (_libusb_version_ptr.contents.major<<48) + \
-                  (_libusb_version_ptr.contents.minor<<32) + \
-                  (_libusb_version_ptr.contents.micro<<16) + \
-                  (_libusb_version_ptr.contents.nano<<0)
+_libusb_version = (_libusb_version_ptr.contents.major << 48) + \
+                  (_libusb_version_ptr.contents.minor << 32) + \
+                  (_libusb_version_ptr.contents.micro << 16) + \
+                  (_libusb_version_ptr.contents.nano  <<  0)
 _libusb_version_string = f"{_libusb_version_ptr.contents.major}.{_libusb_version_ptr.contents.minor}.{_libusb_version_ptr.contents.micro}.{_libusb_version_ptr.contents.nano}{_libusb_version_ptr.contents.rc}"
 
 def get_libusb_version() -> Version:
@@ -405,15 +404,15 @@ class Configuration(ImmutableStructProxy):
 class _PendingCollection:
     """
     Used to keep track of pending transfers and prevent garbage collection.
-    Thread safe.
+    Thread-safe put method.
     """
 
     def __init__(self):
         self._data = set()
-        self._done = asyncio.Event()
-        self._done.set()
         self._tasks = 0
         self._lock = threading.Lock()
+        self._waiters = deque()
+        self._loop = asyncio.get_event_loop()
 
     def __contains__(self, item):
         return item in self._data
@@ -427,7 +426,6 @@ class _PendingCollection:
     def put(self, item):
         with self._lock:
             self._data.add(item)
-            self._done.clear()
             self._tasks += 1
 
     def pull(self, item):
@@ -438,20 +436,36 @@ class _PendingCollection:
         with self._lock:
             self._tasks -= 1
             if self._tasks == 0:
-                self._done.set()
+                for future in self._waiters:
+                    if not future.done():
+                        future.set_result(True)
 
     def is_done(self):
-        return self._done.is_set()
+        return self._tasks == 0
 
     async def wait(self):
-        await self._done.wait()
+        # Lock to ensure the task count doesn't change on us.
+        with self._lock:
+            if self._tasks == 0:
+                return True
+
+            future = self._loop.create_future()
+            self._waiters.append(future)
+
+        try:
+            await future
+            return True
+        finally:
+            self._waiters.remove(future)
 
 
 
 class DeviceHandle:
     """
     An open USB Device.
-    A wrapper for libusb_device_handle.
+
+    Most methods, such as those that create new Transfer instances or
+    perform device communication, are thread safe unless otherwise noted.
 
     All Transfer instances submitted to a handle should be allowed to finish
     before exiting or closing the handle. If there are still pending
@@ -464,7 +478,12 @@ class DeviceHandle:
                  '_lock', '_context')
 
     def __init__(self, context):
-        """Should not be instantiated from user code."""
+        """
+        Initializes a NULL DeviceHandle instance.
+
+        New instances should not be created/initialized from user code.
+        Device.open or Context.wrap_sys_device should be used, instead.
+        """
 
         self._transfers = WeakSet()
         self._pending = _PendingCollection()
@@ -478,14 +497,21 @@ class DeviceHandle:
         Return bool(self).
         True if the DeviceHandle instance is open.
         """
-        return hasattr(self, '_obj') and bool(self._obj) and not self._closing
+        return not self._closing and bool(self._obj)
 
 
     def _open(self, device_ref):
         """
-        Open this DeviceHandle; to be called by Device.open().
-        Calling this from user code is NOT supported.
+        Open this DeviceHandle; to be called by Device.open(). Returns an
+        async function used to safely close the handle. The returned
+        function is not thread safe.
+
+        Calling this from user code is not supported (but will function).
         """
+
+        loop = asyncio.get_event_loop()
+        if loop is not self._context._loop:
+            raise RuntimeError("DeviceHandle instances must be opened in the Context event loop.")
 
         # Open the underlying libusb_device_handle.
         if device_ref is not None:
@@ -515,7 +541,7 @@ class DeviceHandle:
                             warn(RuntimeWarning(err))
 
             # Ensure callbacks have run. We must ensure not to hold a lock
-            # across this statement, or execution may halt.
+            # across this statement, or execution may deadlock.
             await self._pending.wait()
 
             # Free all attached transfers. No need to reacquire the lock,
@@ -535,6 +561,7 @@ class DeviceHandle:
 
 
     def _register_transfer(self, transfer):
+        # Lock to ensure open state and single modification.
         with self._lock:
             if not self:
                 raise RuntimeError("cannot register transfer to closed DeviceHandle")
@@ -825,6 +852,7 @@ class DeviceHandle:
     def cancel_all(self):
         """
         Cancel all registered transfers.
+
         Thread-safe.
         """
 
@@ -833,11 +861,20 @@ class DeviceHandle:
                 transfer.cancel()
 
     def is_clear(self) -> bool:
-        """True if there are no pending transfers for this handle."""
+        """
+        True if there are no pending transfers for this handle. Not reliable
+        if transfers are being managed from other threads.
+        """
         return not self._pending.is_done()
 
     async def wait_clear(self):
-        """Wait until there are no pending transfers for this handle."""
+        """
+        Wait until there are no pending transfers for this handle. Not
+        reliable if transfers are being managed from other threads.
+
+        Not thread-safe.
+        """
+
         while not self._pending.is_done():
             await self._pending.wait()
 
@@ -935,9 +972,10 @@ class _DeviceMeta(ImmutableStructProxyMeta):
         if key in context._devices:
             return context._devices[key]
         else:
-            instance = super().__call__(device_ref, context)
-            context._devices[key] = instance
-            return instance
+            with context._lock:
+                instance = super().__call__(device_ref, context)
+                context._devices[key] = instance
+                return instance
 
 class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
     """
@@ -1002,7 +1040,13 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
 
     @asynccontextmanager
     async def open(self) -> Generator[DeviceHandle, None, None]:
-        """Open a DeviceHandle for I/O on this device."""
+        """
+        Open a DeviceHandle for I/O on this device.
+
+        Not thread-safe. Must be called from the same thread as the Context
+        event loop.
+        """
+
         if not self:
             raise RuntimeError("invalid context")
 
@@ -1388,8 +1432,9 @@ class Transfer:
     """
     The base class for asynchronous USB communication.
 
-    Creating, modifying, and submitting transfers is thread safe. Callbacks
-    will be executed from the Context's event loop thread.
+    Creating, modifying, submitting, and cancelling transfers may be done
+    from any thread. Callbacks will be executed from the Context's event
+    loop thread.
 
     Transfer instances are freed when the DeviceHandle they were created
     from closes (or when garbage collected). Freed transfers cannot be
@@ -1398,7 +1443,7 @@ class Transfer:
     of status, which becomes TransferStatus.FREED.
     """
 
-    __slots__ = ('__weakref__', '_buffer', '_dev_handle', '_finished', '_flags',
+    __slots__ = ('__weakref__', '_buffer', '_dev_handle', '_waiters', '_flags',
                  '_free_obj', '_lock', '_state', '_transfer', '_user_callback')
 
     def __init__(self, dev_handle: DeviceHandle, /, iso_packets: int = 0):
@@ -1418,20 +1463,7 @@ class Transfer:
         self._buffer = None
         self._user_callback = None
         self._flags = TransferFlag(0)
-
-        self._finished = asyncio.Event()
-        self._finished.set()
-
-        # The function that executes the user callback and marks the transfer
-        # as finished. The `self` value is taken as an argument to prevent the
-        # finalizer from holding a reference through the transfer callback.
-        def finish(self):
-            self._finished.set()
-            self._dev_handle._pending.task_done()
-
-            # Execute user callback (if set).
-            if self._user_callback is not None:
-                self._user_callback(self)
+        self._waiters = deque()
 
         # The underlying callback invoked by libusb. This will be executed
         # from the Context's event loop thread.
@@ -1451,8 +1483,29 @@ class Transfer:
             self._state &= ~_TransferState.PENDING
             self._dev_handle._pending.pull(self)
 
-            # Schedule the user callback and finishing logic.
-            asyncio.get_running_loop().call_soon(finish, self)
+            ctx_loop = self._dev_handle._context._loop
+
+            # Schedule the callback to execute.
+            if self._user_callback is not None:
+                ctx_loop.call_soon(self._user_callback, self)
+
+            # The function used to set a future in a loop using
+            # loop.call_soon_threadsafe.
+            def set_future(future):
+                if not future.done():
+                    future.set_result(True)
+
+            # Notify waiters (across threads).
+            with self._lock:
+                for future in self._waiters:
+                    loop = future.get_loop()
+                    if loop is ctx_loop:
+                        set_future(future)
+                    else:
+                        loop.call_soon_threadsafe(set_future, future)
+
+            # Notify the collection that processing is done.
+            self._dev_handle._pending.task_done()
 
         self._transfer.callback = callback
 
@@ -1523,6 +1576,8 @@ class Transfer:
         Cannot be called on a pending transfer.
         """
 
+        # Acquire the lock on the handle to lock its state and make sure it
+        # doesn't close during submission.
         with self._dev_handle._lock:
             if not self._dev_handle:
                 raise RuntimeError("cannot submit transfer to closed DeviceHandle")
@@ -1547,7 +1602,6 @@ class Transfer:
             # pending transfers.
             self._state |= _TransferState.SUBMITTED | _TransferState.PENDING
             self._dev_handle._pending.put(self)
-            self._finished.clear()
 
 
     @_none_if_freed
@@ -1557,36 +1611,61 @@ class Transfer:
 
         It is possible for the finished transfer status to evaluate to a
         value other than CANCELLED (e.g. TIMED_OUT) even if explicitly
-        cancelled, simply depending on resolution order.
+        cancelled, simply depending on event order.
 
         Thread-safe.
         """
 
-        if _TransferState.PENDING in self._state:
-            match _libusb.libusb_cancel_transfer(byref(self._transfer)):
-                case int(_libusb.LIBUSB_SUCCESS):
-                    pass
-                case int(_libusb.LIBUSB_ERROR_NOT_FOUND):
-                    pass
-                case err:
-                    raise _error(err)
+        # Acquire the lock to ensure the transfer isn't freed during
+        # cancellation.
+        with self._lock:
+            if _TransferState.PENDING in self._state:
+                match _libusb.libusb_cancel_transfer(byref(self._transfer)):
+                    case int(_libusb.LIBUSB_SUCCESS):
+                        pass
+                    case int(_libusb.LIBUSB_ERROR_NOT_FOUND):
+                        pass
+                    case err:
+                        raise _error(err)
 
 
     async def wait(self):
-        """Wait for the transfer to complete or cancel."""
-        await self._finished.wait()
+        """
+        Wait for the transfer to complete or cancel.
+
+        Thread-safe.
+        """
+
+        # Acquire the lock to ensure the future and state are synced.
+        with self._lock:
+            if not _TransferState.PENDING in self._state:
+                return True
+
+            future = asyncio.get_event_loop().create_future()
+            self._waiters.append(future)
+
+        try:
+            await future
+            return True
+        finally:
+            with self._lock:
+                self._waiters.remove(future)
 
 
     def _free(self):
+        # Acquire the lock so we can safely free resources.
         with self._lock:
-            assert _TransferState.PENDING not in self._state, "free pending transfer"
+            # This is an assert, because it should never happen if the
+            # library has been written correctly.
+            assert _TransferState.PENDING not in self._state, "_free called on pending transfer"
 
             del self._transfer
             del self._buffer
             del self._flags
             del self._user_callback
-            del self._state
             del self._dev_handle
+
+            self._state = _TransferState(0)
 
             # Call the finalizer to free the underlying transfer.
             self._free_obj()
@@ -1762,12 +1841,13 @@ class Context:
     """
 
     __slots__ = ('_obj', '_loop', '_timed_events', '_devices', '_pollfds',
-                 '_pollfd_added_cb', '_pollfd_removed_cb', '_opts')
+                 '_pollfd_added_cb', '_pollfd_removed_cb', '_opts', '_lock')
 
     def __init__(self, *, loop: asyncio.AbstractEventLoop = None,
                  no_discovery: bool = False):
 
         self._loop = loop or asyncio.get_event_loop()
+        self._lock = threading.Lock()
         self._obj = POINTER(_libusb.struct_libusb_context)()
         self._devices = WeakValueDictionary()
         self._pollfds = set()
@@ -1867,8 +1947,7 @@ class Context:
         _libusb.libusb_exit(self._obj)
 
         # Delete the context pointer to signify that this instance is no
-        # longer usable (instance is not reusable in order to prevent
-        # collisions on Device instances this behavior may change).
+        # longer usable.
         del self._obj
 
     def __bool__(self):
@@ -1917,7 +1996,11 @@ class Context:
 
     @_in_context
     def get_device_list(self) -> list[Device]:
-        """Get a list of Devices."""
+        """
+        Get a list of Devices.
+
+        Thread-safe.
+        """
 
         # Get the device list.
         p_list = POINTER(POINTER(_libusb.libusb_device))()
