@@ -897,7 +897,7 @@ class DeviceHandle:
         transfer = self.alloc_transfer(0)
         transfer.type = TransferType.CONTROL
         transfer.endpoint = 0
-        transfer.callback = callback
+        transfer.set_callback(callback)
         transfer.timeout = timeout
 
         transfer.buffer = ControlTransferBuffer(bmRequestType, bRequestCode, 
@@ -916,7 +916,7 @@ class DeviceHandle:
         transfer = self.alloc_transfer(0)
         transfer.type = TransferType.BULK
         transfer.endpoint = endpoint
-        transfer.callback = callback
+        transfer.set_callback(callback)
         transfer.timeout = timeout
 
         if isinstance(buffer, TransferBuffer):
@@ -937,7 +937,7 @@ class DeviceHandle:
         transfer = self.alloc_transfer(0)
         transfer.type = TransferType.INTERRUPT
         transfer.endpoint = endpoint
-        transfer.callback = callback
+        transfer.set_callback(callback)
         transfer.timeout = timeout
 
         if isinstance(buffer, TransferBuffer):
@@ -1433,9 +1433,9 @@ class Transfer:
     The base class for asynchronous USB communication.
 
     Creating, modifying, submitting, and cancelling transfers may be done
-    from any thread. Callbacks will be executed from the Context's event
-    loop thread.
+    from any thread.
 
+    Unlike in libusb, transfer lifecycles are bound to their DeviceHandle.
     Transfer instances are freed when the DeviceHandle they were created
     from closes (or when garbage collected). Freed transfers cannot be
     resubmitted or otherwise modified. Most properties are no longer
@@ -1444,7 +1444,8 @@ class Transfer:
     """
 
     __slots__ = ('__weakref__', '_buffer', '_dev_handle', '_waiters', '_flags',
-                 '_free_obj', '_lock', '_state', '_transfer', '_user_callback')
+                 '_free_obj', '_lock', '_state', '_transfer', '_callback',
+                 '_callback_loop')
 
     def __init__(self, dev_handle: DeviceHandle, /, iso_packets: int = 0):
         # Allocate a transfer.
@@ -1461,7 +1462,8 @@ class Transfer:
         self._transfer = transfer_ptr.contents
         self._state = _TransferState(0)
         self._buffer = None
-        self._user_callback = None
+        self._callback = None
+        self._callback_loop = None
         self._flags = TransferFlag(0)
         self._waiters = deque()
 
@@ -1485,9 +1487,13 @@ class Transfer:
 
             ctx_loop = self._dev_handle._context._loop
 
-            # Schedule the callback to execute.
-            if self._user_callback is not None:
-                ctx_loop.call_soon(self._user_callback, self)
+            # Schedule the callback to execute (in the given loop).
+            if self._callback is not None:
+                if self._callback_loop is None:
+                    ctx_loop.call_soon(self._callback, self)
+                else:
+                    self._callback_loop.call_soon_threadsafe(self._callback,
+                                                             self)
 
             # The function used to set a future in a loop using
             # loop.call_soon_threadsafe.
@@ -1542,7 +1548,10 @@ class Transfer:
 
     @staticmethod
     def _acquire(func):
-        """A decorator to prevent modification of a pending or freed tramsfer."""
+        """
+        A decorator to prevent modification of a pending or freed transfer.
+        Also acquires a lock.
+        """
 
         @wraps(func)
         def wrapper(self, *args, **kwargs):
@@ -1556,7 +1565,10 @@ class Transfer:
 
     @staticmethod
     def _permanent(func):
-        """A decorator to prevent modification of certain properties on a previously submitted transfer."""
+        """
+        A decorator to prevent modification of certain properties on a
+        previously submitted transfer. Also acquires a lock.
+        """
 
         @wraps(func)
         def wrapper(self, *args, **kwargs):
@@ -1636,7 +1648,8 @@ class Transfer:
         Thread-safe.
         """
 
-        # Acquire the lock to ensure the future and state are synced.
+        # Acquire the lock to ensure the future and state are synced, and
+        # that _waiters isn't being modified in two places at once.
         with self._lock:
             if not _TransferState.PENDING in self._state:
                 return True
@@ -1644,6 +1657,7 @@ class Transfer:
             future = asyncio.get_event_loop().create_future()
             self._waiters.append(future)
 
+        # Drop lock to await without deadlocking single-threads.
         try:
             await future
             return True
@@ -1662,7 +1676,8 @@ class Transfer:
             del self._transfer
             del self._buffer
             del self._flags
-            del self._user_callback
+            del self._callback
+            del self._callback_loop
             del self._dev_handle
 
             self._state = _TransferState(0)
@@ -1672,35 +1687,21 @@ class Transfer:
             del self._free_obj
 
 
-    @property
-    @_none_if_freed
-    def callback(self) -> Callable[['Transfer'], bool | None]:
+    @_acquire
+    def set_callback(self, callback: Callable[['Transfer'], None], loop = None):
         """
-        callback(transfer)
-
-        The callback function to be called on transfer completion. The
-        function should accept one argument: the Transfer instance.
-
-        Callbacks are executed in the Context's event loop using
-        loop.call_soon(). Uncaught exceptions can be captured in the loop's
-        exception handler (see loop.set_exception_handler()).
+        Set the callback function to be invoked on completion. Optionally
+        provide a loop to execute the callback from; defaults to the
+        Context's event loop.
 
         The callback will execute regardless of the resulting status, even
         if explicitly cancelled.
+
+        Loop should be an async loop that supports call_soon_threadsafe.
         """
-        return self._user_callback
 
-    @callback.setter
-    @_acquire
-    def callback(self, value: Callable[['Transfer'], bool | None]):
-        if value is not None and not callable(value):
-            raise TypeError("callback must be callable")
-        self._user_callback = value
-
-    @callback.deleter
-    @_acquire
-    def callback(self):
-        self._user_callback = None
+        self._callback = callback
+        self._callback_loop = loop
 
 
     @property
