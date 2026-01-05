@@ -173,71 +173,91 @@ class RequestRecipient(RequestTypeFlags, Enum):
 
 
 
-class AccessError(PermissionError):
+class USBError(Exception):
+    """The base USB exception type."""
+    pass
+
+class IOError(USBError):
+    """A generic I/O error."""
+    pass
+
+class AccessError(USBError, PermissionError):
     """
     An error raised when access to a device is denied. It could be that the
     user lacks the necessary permissions, or the device is already in use
     elsewhere (such as the kernel driver).
+
+    This is an OSError subclass because it is almost always caused by a
+    system EACCES (on POSIX systems).
     """
     pass
 
-class NoDeviceError(OSError):
+class NoDeviceError(USBError, OSError):
     """
     An error raised when IO is attempted on a non-present device. The device
     may not exist, or may have been disconnected.
+
+    This is an OSError subclass because it is almost always caused by a
+    system ENODEV (on POSIX systems).
     """
     pass
 
-class NotFoundError(OSError):
+class NotFoundError(USBError):
     """
     An error raised if the requested device or resource could not be found.
-    This doesn't necessarily indicate that the physical device is unplugged
-    or disconnected, just that libusb couldn't access it in the expected
-    manner. This is usually caused by missing drivers.
     """
     pass
 
-class ResourceBusyError(OSError):
+class ResourceBusyError(USBError):
     """
     An error raised when IO is attempted on a device or resource that is
     currently in use, and as such, can't be accessed by a new request.
     """
     pass
 
-class BufferOverflowError(BufferError):
+class OverflowError(USBError, OSError):
     """
-    This is a specific type of BufferError (and as such, is a subclass of)
-    that is raised when more data is received from a device than space was
+    An error raised when more data is received from a device than space was
     allocated for the transfer.
+
+    This is an OSError subclass because it is almost always caused by a
+    system EOVERFLOW (on POSIX systems).
     """
     pass
 
-class PipeError(BrokenPipeError):
+class PipeError(USBError, BrokenPipeError):
     """
-    An error raised when a USB pipe error is encountered. This is technically
-    just a BrokenPipeError (and as such, is a subclass of).
+    An error raised when a USB pipe error is encountered, usually due to a
+    halt or stall condition.
+
+    This is an OSError subclass because it is almost always caused by a
+    system EPIPE (on POSIX systems).
     """
     pass
+
+class NotSupportedError(USBError, NotImplementedError):
+    """
+    An error raised when an operation is not supported by the system, device
+    drivers, or installed libusb version.
+    """
+    pass
+
+
 
 _errmap = {
-    _libusb.LIBUSB_ERROR_IO: (OSError, errno.EIO),
-    #_libusb.LIBUSB_ERROR_INVALID_PARAM: (OSError, errno.EINVAL),
+    _libusb.LIBUSB_ERROR_IO: (IOError,),
     _libusb.LIBUSB_ERROR_INVALID_PARAM: (ValueError,),
     _libusb.LIBUSB_ERROR_ACCESS: (AccessError, errno.EACCES),
     _libusb.LIBUSB_ERROR_NO_DEVICE: (NoDeviceError, errno.ENODEV),
-    _libusb.LIBUSB_ERROR_NOT_FOUND: (NotFoundError, errno.ENOENT),
-    _libusb.LIBUSB_ERROR_BUSY: (ResourceBusyError, errno.EBUSY),
-    _libusb.LIBUSB_ERROR_TIMEOUT: (TimeoutError, errno.ETIMEDOUT),
-    #_libusb.LIBUSB_ERROR_OVERFLOW: (OSError, errno.EOVERFLOW),
-    _libusb.LIBUSB_ERROR_OVERFLOW: (BufferOverflowError,),
+    _libusb.LIBUSB_ERROR_NOT_FOUND: (NotFoundError,),
+    _libusb.LIBUSB_ERROR_BUSY: (ResourceBusyError,),
+    _libusb.LIBUSB_ERROR_TIMEOUT: (TimeoutError,),
+    _libusb.LIBUSB_ERROR_OVERFLOW: (OverflowError, errno.EOVERFLOW),
     _libusb.LIBUSB_ERROR_PIPE: (PipeError, errno.EPIPE),
     _libusb.LIBUSB_ERROR_INTERRUPTED: (InterruptedError, errno.EINTR),
-    #_libusb.LIBUSB_ERROR_NO_MEM: (OSError, errno.ENOMEM),
     _libusb.LIBUSB_ERROR_NO_MEM: (MemoryError,),
-    #_libusb.LIBUSB_ERROR_NOT_SUPPORTED: (OSError, errno.EOPNOTSUPP),
-    _libusb.LIBUSB_ERROR_NOT_SUPPORTED: (NotImplementedError,),
-    #_libusb.LIBUSB_ERROR_OTHER: (OSError, errno.EFAULT)
-    _libusb.LIBUSB_ERROR_OTHER: (RuntimeError,)
+    _libusb.LIBUSB_ERROR_NOT_SUPPORTED: (NotSupportedError,),
+    _libusb.LIBUSB_ERROR_OTHER: (USBError,)
 }
 
 # Used to map and message errors encountered from libusb.
@@ -251,7 +271,7 @@ def _error(e, message = None, /, *args, **kwargs):
     else:
         return RuntimeError(message)
 
-# Catch and map errors from libusb.
+# Catch, map, and raise errors from libusb.
 def _catch(e, message = None):
     if e < 0:
         raise _error(e, message)
@@ -767,7 +787,7 @@ class DeviceHandle:
     def bind_interface(self, interface: Interface | int) -> Generator[None, None, None]:
         """
         A utility context manager that calls claim_interface on entry and
-        release_interface (ignoring "NO_DEVICE" errors) on exit.
+        release_interface (ignoring NoDeviceErrors) on exit.
         """
 
         self.claim_interface(interface)
@@ -1858,7 +1878,7 @@ class Context:
 
         if no_discovery:
             if _libusb_version < 0x10000001b0000: # 1.0.27
-                raise RuntimeError(f"no_discovery option requires libusb version ≥ 1.0.27, found {_libusb_version_string}")
+                raise NotSupportedError(f"no_discovery option requires libusb version ≥ 1.0.27, found {_libusb_version_string}")
             opts.append(_libusb.libusb_init_option(
                 option=_libusb.LIBUSB_OPTION_NO_DEVICE_DISCOVERY))
 
@@ -2036,7 +2056,7 @@ class Context:
         """
 
         if _libusb_version < 0x1000000170000: # 1.0.23
-            raise RuntimeError(f"wrap_sys_device requires libusb version ≥ 1.0.23, found {_libusb_version_string}")
+            raise NotSupportedError(f"wrap_sys_device requires libusb version ≥ 1.0.23, found {_libusb_version_string}")
 
         handle = DeviceHandle(self)
         _catch( _libusb.libusb_wrap_sys_device(self._obj, sys_dev,
@@ -2065,12 +2085,15 @@ __all__ = [
     'RequestDirection',
     'RequestType',
     'RequestRecipient',
+    'USBError',
+    'IOError',
     'AccessError',
     'NoDeviceError',
     'NotFoundError',
     'ResourceBusyError',
-    'BufferOverflowError',
+    'OverflowError',
     'PipeError',
+    'NotSupportedError',
     'EndpointDirection',
     'EndpointType',
     'Endpoint',
