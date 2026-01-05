@@ -5,6 +5,7 @@ import select
 import threading
 from collections import deque
 from contextlib import contextmanager, asynccontextmanager
+from codecs import decode
 from ctypes import POINTER, addressof, byref, c_int, c_ubyte, pointer
 from enum import Enum, IntEnum, Flag, auto
 from functools import wraps
@@ -598,6 +599,26 @@ class DeviceHandle:
         """Get the Device this handle is attached to."""
         return Device(_libusb.libusb_get_device(self._obj).contents,
                       self._context)
+
+
+    def get_string(self, index: int) -> str:
+        if index == 0:
+            return None
+        elif index < 0 or index > 255:
+            raise ValueError("string descriptor index out of bounds")
+
+        buffer = (c_ubyte * 255)()
+        result = _libusb.libusb_control_transfer(
+            self._obj, _libusb.LIBUSB_ENDPOINT_IN,
+            _libusb.LIBUSB_REQUEST_GET_DESCRIPTOR,
+            (_libusb.LIBUSB_DT_STRING << 8) | index, 0, buffer, 255, 0)
+
+        if result == _libusb.LIBUSB_ERROR_PIPE:
+            raise NotFoundError("invalid string descriptor")
+        elif result < 0:
+            raise _error(result)
+
+        return decode(memoryview(buffer)[2:result], 'utf-16le')
 
 
     def control_transfer(self, bmRequestType: int, bRequest: int, wValue: int,
