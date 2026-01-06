@@ -120,7 +120,7 @@ def termux_get_device(path: str) -> int:
     usb_fd, err = _termux_api.run_command(args)
 
     if usb_fd == None:
-        raise RuntimeError(f"Termux:API: {err}")
+        raise RuntimeError(f"Termux:API: {err.strip()}")
 
     return usb_fd
 
