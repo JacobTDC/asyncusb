@@ -425,12 +425,13 @@ class Configuration(ImmutableStructProxy):
 class _PendingCollection:
     """
     Used to keep track of pending transfers and prevent garbage collection.
-    Thread-safe put method.
+    Thread-safe add method.
     """
+
+    __slots__ = ('_data', '_lock', '_waiters', '_loop')
 
     def __init__(self):
         self._data = set()
-        self._tasks = 0
         self._lock = threading.Lock()
         self._waiters = deque()
         self._loop = asyncio.get_event_loop()
@@ -444,30 +445,21 @@ class _PendingCollection:
     def __len__(self):
         return len(self._data)
 
-    def put(self, item):
+    def add(self, item):
         with self._lock:
             self._data.add(item)
-            self._tasks += 1
 
-    def pull(self, item):
+    def remove(self, item):
         with self._lock:
             self._data.remove(item)
-
-    def task_done(self):
-        with self._lock:
-            self._tasks -= 1
-            if self._tasks == 0:
+            if not self._data:
                 for future in self._waiters:
                     if not future.done():
                         future.set_result(True)
 
-    def is_done(self):
-        return self._tasks == 0
-
     async def wait(self):
-        # Lock to ensure the task count doesn't change on us.
         with self._lock:
-            if self._tasks == 0:
+            if not self._data:
                 return True
 
             future = self._loop.create_future()
@@ -483,7 +475,7 @@ class _PendingCollection:
 
 class DeviceHandle:
     """
-    An open USB Device.
+    A class that represents an open USB Device.
 
     Most methods, such as those that create new Transfer instances or
     perform device communication, are thread safe unless otherwise noted.
@@ -491,8 +483,9 @@ class DeviceHandle:
     All Transfer instances submitted to a handle should be allowed to finish
     before exiting or closing the handle. If there are still pending
     transfers when the handle is closed, they will be cancelled, and a
-    warning will be displayed. Transfers cancelled in this way will raise an
-    error if the callback attempts to resubmit them.
+    warning will be displayed. Transfers cancelled in this way are not
+    guaranteed to still be alive once the callback executes, and will raise
+    an error if the callback attempts to resubmit them.
     """
 
     __slots__ = ('__weakref__', '_obj', '_transfers', '_closing', '_pending',
@@ -527,12 +520,12 @@ class DeviceHandle:
         async function used to safely close the handle. The returned
         function is not thread safe.
 
-        Calling this from user code is not supported (but will function).
+        Calling this from user code is not supported.
         """
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         if loop is not self._context._loop:
-            raise RuntimeError("DeviceHandle instances must be opened in the Context event loop.")
+            raise RuntimeError("DeviceHandle instances must be opened in the Context event loop")
 
         # Open the underlying libusb_device_handle.
         if device_ref is not None:
@@ -544,29 +537,27 @@ class DeviceHandle:
             if not self._context:
                 raise RuntimeError("invalid context")
 
-            with self._lock, self._pending._lock:
+            with self._lock:
                 # Prevent transfers from registering or submitting.
                 self._closing = True
 
-                # Cancel pending transfers. Relying on this behavior is
-                # discouraged.
-                if self._pending:
-                    warn(UserWarning("DeviceHandle instance closed on pending transfers; transfers will be cancelled"))
-                    for transfer in self._pending:
-                        try:
-                            transfer.cancel()
-                        except err:
-                            # Errors from transfer.cancel probably won't
-                            # break anything, and it's more important that
-                            # we continue.
-                            warn(RuntimeWarning(err))
+            # Cancel pending transfers. Relying on this behavior is
+            # discouraged.
+            if self._pending:
+                warn(UserWarning("DeviceHandle instance closed on pending transfers; transfers will be cancelled"))
+                for transfer in self._pending:
+                    try:
+                        transfer.cancel()
+                    except err:
+                        # Errors from transfer.cancel probably won't
+                        # break anything, and it's more important that
+                        # we continue.
+                        warn(RuntimeWarning(err))
 
-            # Ensure callbacks have run. We must ensure not to hold a lock
-            # across this statement, or execution may deadlock.
+            # Ensure all transfers have completed.
             await self._pending.wait()
 
-            # Free all attached transfers. No need to reacquire the lock,
-            # as self._closing should prevent any operations, anyway.
+            # Free all attached transfers.
             while self._transfers:
                 try:
                     self._transfers.pop()._free()
@@ -851,7 +842,7 @@ class DeviceHandle:
         If the reset fails (with a NotFoundError), the descriptors change,
         or the previous state cannot be restored, the device will appear to
         be disconnected and reconnected. This means that the device handle
-        is no longer valid (you should close it) and rediscover the device.
+        is no longer valid (you should close it and rediscover the device).
 
         This is a blocking function which usually incurs a noticeable delay.
         """
@@ -881,7 +872,7 @@ class DeviceHandle:
         _catch( _libusb.libusb_set_configuration(self._obj, int(config)) )
 
     def check_connected(self) -> bool:
-        """True if the device is still connected, False otherwise."""
+        """Returns True if the device is still connected, False otherwise."""
 
         try:
             self.control_transfer(0x80, 0x00, 0, 0, 2)
@@ -892,11 +883,14 @@ class DeviceHandle:
 
     def cancel_all(self):
         """
-        Cancel all registered transfers.
+        Cancel all registered transfers. Does not prevent them from
+        resubmitting.
 
         Thread-safe.
         """
 
+        # Lock to ensure the transfers collection isn't modified while
+        # iterating.
         with self._lock:
             for transfer in self._transfers:
                 transfer.cancel()
@@ -906,7 +900,7 @@ class DeviceHandle:
         True if there are no pending transfers for this handle. Not reliable
         if transfers are being managed from other threads.
         """
-        return not self._pending.is_done()
+        return not self._pending
 
     async def wait_clear(self):
         """
@@ -916,11 +910,11 @@ class DeviceHandle:
         Not thread-safe.
         """
 
-        while not self._pending.is_done():
+        while self._pending:
             await self._pending.wait()
 
 
-    def alloc_transfer(self, iso_packets: int = 0):
+    def alloc_transfer(self, iso_packets: int = 0) -> 'Transfer':
         """Allocate a new Transfer for this DeviceHandle."""
         return Transfer(self, iso_packets)
 
@@ -1100,7 +1094,7 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
         try:
             yield handle
         finally:
-            await close()
+            await asyncio.shield(close())
 
     @property
     def speed(self) -> Speed:
@@ -1524,7 +1518,7 @@ class Transfer:
 
             # Update state and remove from pending collection.
             self._state &= ~_TransferState.PENDING
-            self._dev_handle._pending.pull(self)
+            self._dev_handle._pending.remove(self)
 
             ctx_loop = self._dev_handle._context._loop
 
@@ -1550,9 +1544,6 @@ class Transfer:
                         set_future(future)
                     else:
                         loop.call_soon_threadsafe(set_future, future)
-
-            # Notify the collection that processing is done.
-            self._dev_handle._pending.task_done()
 
         self._transfer.callback = callback
 
@@ -1654,7 +1645,7 @@ class Transfer:
             # Update the state of the transfer and add it to the collection of
             # pending transfers.
             self._state |= _TransferState.SUBMITTED | _TransferState.PENDING
-            self._dev_handle._pending.put(self)
+            self._dev_handle._pending.add(self)
 
 
     @_none_if_freed
@@ -2074,6 +2065,9 @@ class Context:
         Device instances created for this handle (from
         DeviceHandle.get_device) should not be opened. Doing so will most
         likely raise an error, but could result in undefined behavior.
+
+        Not thread-safe. Must be called from the same thread as the Context
+        event loop.
         """
 
         if _libusb_version < 0x1000000170000: # 1.0.23
@@ -2091,7 +2085,7 @@ class Context:
         try:
             yield handle
         finally:
-            await close()
+            await asyncio.shield(close())
 
 
 
