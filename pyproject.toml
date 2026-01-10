@@ -7,6 +7,7 @@ description = "Another async libusb wrapper."
 readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [
+    "Framework :: AsyncIO",
     "License :: OSI Approved :: ISC License (ISCL)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3.12",
