@@ -505,6 +505,12 @@ class _PendingCollection:
 
 
 
+def _set_future(future):
+    if not future.done():
+        future.set_result(True)
+
+
+
 class DeviceHandle:
     """
     A class that represents an open USB Device.
@@ -521,7 +527,7 @@ class DeviceHandle:
     """
 
     __slots__ = ('__weakref__', '_obj', '_transfers', '_closing', '_pending',
-                 '_lock', '_context')
+                 '_lock', '_context', '_holders', '_block')
 
     def __init__(self, context):
         """
@@ -537,6 +543,8 @@ class DeviceHandle:
         self._closing = False
         self._lock = threading.Lock()
         self._context = context
+        self._holders = 0
+        self._block = None
 
     def __bool__(self):
         """
@@ -544,6 +552,29 @@ class DeviceHandle:
         True if the DeviceHandle instance is open.
         """
         return not self._closing and bool(self._obj)
+
+
+    def __enter__(self):
+        """
+        A context manager that ensures the DeviceHandle is held open until
+        exited. Useful for thread safety.
+
+        While held, attempting to exit the original Context.wrap_sys_device
+        or Device.open context will await (async) until all holders exit.
+        """
+
+        with self._lock:
+            if self._closing:
+                raise RuntimeError("cannot enter closed DeviceHandle")
+            self._holders += 1
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        with self._lock:
+            self._holders -= 1
+            if self._holders == 0 and self._closing:
+                # Wake async closer.
+                loop = self._block.get_loop()
+                loop.call_soon_threadsafe(_set_future(self._block))
 
 
     def _open(self, device_ref):
@@ -572,6 +603,17 @@ class DeviceHandle:
             with self._lock:
                 # Prevent transfers from registering or submitting.
                 self._closing = True
+
+                # Check if anyone is holding open.
+                if self._holders:
+                    self._block = loop.create_future()
+
+            # Wait until all holders have released.
+            if self._block:
+                try:
+                    await self._block
+                finally:
+                    self._block = None
 
             # Cancel pending transfers. Relying on this behavior is
             # discouraged.
@@ -607,7 +649,7 @@ class DeviceHandle:
     def _register_transfer(self, transfer):
         # Lock to ensure open state and single modification.
         with self._lock:
-            if not self:
+            if self._closing:
                 raise RuntimeError("cannot register transfer to closed DeviceHandle")
 
             self._transfers.add(transfer)
@@ -1577,20 +1619,14 @@ class Transfer:
                     self._callback_loop.call_soon_threadsafe(self._callback,
                                                              self)
 
-            # The function used to set a future in a loop using
-            # loop.call_soon_threadsafe.
-            def set_future(future):
-                if not future.done():
-                    future.set_result(True)
-
             # Notify waiters (across threads).
             with self._lock:
                 for future in self._waiters:
                     loop = future.get_loop()
                     if loop is ctx_loop:
-                        set_future(future)
+                        _set_future(future)
                     else:
-                        loop.call_soon_threadsafe(set_future, future)
+                        loop.call_soon_threadsafe(_set_future, future)
 
         self._transfer.callback = callback
 
