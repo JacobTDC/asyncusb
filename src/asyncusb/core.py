@@ -305,6 +305,11 @@ class Endpoint(ImmutableStructProxy):
     _hidden_fields_ = ('bDescriptorType', 'bLength', 'extra', 'extra_length')
 
     def __init__(self, desc, interface):
+        """
+        Should not be instantiated from user code.
+        Use Interface.endpoints instead.
+        """
+
         super().__init__(desc)
         self._interface = interface
 
@@ -347,6 +352,11 @@ class Interface(ImmutableStructProxy):
     _hidden_fields_ = ('bDescriptorType', 'bLength', 'bNumEndpoints', 'endpoint', 'extra', 'extra_length')
 
     def __init__(self, desc, config):
+        """
+        Should not be instantiated from user code.
+        Use Configuration.interfaces instead.
+        """
+
         super().__init__(desc)
         self._config = config
         self._endpoints = tuple( Endpoint(ept, self) for ept in self._contents.endpoint[:self._contents.bNumEndpoints] )
@@ -373,21 +383,39 @@ class Interface(ImmutableStructProxy):
 class Configuration(ImmutableStructProxy):
     """
     A wrapper for libusb_config_descriptor.
+
     Configuration instances are not tied to their "parent" Context and will
     survive until garbage collection, even if the Context is closed.
 
     For bNumInterfaces, use len(self.interfaces).
     """
 
-    __slots__ = ('__weakref__', '_interfaces', '_dev_speed')
+    __slots__ = ('__weakref__', '_interfaces', '_max_power')
     _struct_ = _libusb.struct_libusb_config_descriptor
     _hidden_fields_ = ('MaxPower', 'bDescriptorType', 'bLength', 'bNumInterfaces', 'extra', 'extra_length', 'interface')
 
-    def __init__(self, desc_ptr, dev_speed):
+    def __init__(self, device_obj, index):
+        """
+        Should not be instantiated from user code.
+        Use Device.configs instead.
+        """
+
+        # Get the config descriptor.
+        desc_ptr = POINTER(_libusb.struct_libusb_config_descriptor)()
+        _catch( _libusb.libusb_get_config_descriptor(device_obj, index,
+                                                     byref(desc_ptr)) )
         super().__init__(desc_ptr.contents)
-        self._dev_speed = dev_speed
+
+        # Free the descriptor on finalization.
         finalize(self, _libusb.libusb_free_config_descriptor, desc_ptr)
 
+        # Calculate the negotiated power usage of the device.
+        if _libusb.libusb_get_device_speed(device_obj) >= Speed.SUPER:
+            self._max_power = self._contents.MaxPower * 8
+        else:
+            self._max_power = self._contents.MaxPower * 2
+
+        # Create nested tuples of Interface instances.
         self._interfaces = tuple( tuple( Interface(alt, self) for alt in intf.altsetting[:intf.num_altsetting] ) for intf in self._contents.interface[:self._contents.bNumInterfaces] )
 
     def __int__(self):
@@ -412,13 +440,17 @@ class Configuration(ImmutableStructProxy):
     @property
     def max_power(self) -> int:
         """Maximum current draw of the Configuration, in milliamps."""
+        return self._max_power
 
-        if self._dev_speed >= Speed.HIGH:
-            return self._contents.MaxPower * 2
-        elif self._dev_speed >= Speed.SUPER:
-            return self._contents.MaxPower * 8
-        else:
-            return self._contents.MaxPower
+    @property
+    def self_powered(self) -> bool:
+        """If the device is self-powered."""
+        return bool(self._contents.bmAttributes & (1 << 6))
+
+    @property
+    def remote_wakeup(self) -> bool:
+        """If the device supports remote wakeup."""
+        return bool(self._contents.bmAttributes & (1 << 5))
 
 
 
@@ -1019,7 +1051,7 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
     For bNumConfigurations, use len(device.configs).
     """
 
-    __slots__ = ('__weakref__', '_obj', '_context', '_configs', '_speed',
+    __slots__ = ('__weakref__', '_obj', '_context', '_configs', '_values',
                  '_unref')
     _struct_ = _libusb.struct_libusb_device_descriptor
     _hidden_fields_ = ('bDescriptorType', 'bLength', 'bNumConfigurations')
@@ -1032,21 +1064,21 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
 
         self._obj = device_ref
         self._context = context
-        self._speed = Speed(_libusb.libusb_get_device_speed(device_ref))
 
         # Populate the device descriptor.
         _catch( _libusb.libusb_get_device_descriptor(device_ref,
                                                      byref(self._contents)) )
 
-        # Get configurations. Must be done after getting speed and populating
-        # the underlying device descriptor.
-        def config(index):
-            config_ptr = POINTER(_libusb.struct_libusb_config_descriptor)()
-            _catch( _libusb.libusb_get_config_descriptor(self._obj, index,
-                                                         byref(config_ptr)) )
-            return Configuration(config_ptr, self.speed)
+        # Get some static values.
+        self._values = (
+            _libusb.libusb_get_bus_number(device_ref),
+            _libusb.libusb_get_port_number(device_ref),
+            _libusb.libusb_get_device_address(device_ref),
+            _libusb.libusb_get_device_speed(device_ref)
+        )
 
-        self._configs = tuple( config(i) for i in range(
+        # Get configurations.
+        self._configs = tuple( Configuration(device_ref, i) for i in range(
             0, self._contents.bNumConfigurations) )
 
         # Schedule finalization within the Context, to be invoked
@@ -1062,7 +1094,7 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
         self._unref = finalize(self, unref, ref(self), device_ref)
 
     def __repr__(self):
-        return f"<{type(self).__module__}.{type(self).__name__} {self.idVendor:0{4}X}:{self.idProduct:0{4}X}>"
+        return f"<{type(self).__module__}.{type(self).__name__} Bus {self.bus_number:03d} Device {self.device_address:03d} {self.idVendor:04X}:{self.idProduct:04X}>"
 
     def __bool__(self):
         """
@@ -1097,25 +1129,40 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
             await asyncio.shield(close())
 
     @property
+    def bus_number(self) -> int:
+        """The number of the bus that the device is connected to."""
+        return self._values[0]
+
+    @property
+    def port_number(self) -> int:
+        """The number of the port that the device is connected to."""
+        return self._values[1]
+
+    @property
+    def device_address(self) -> int:
+        """The address of the device on the bus it is connected to."""
+        return self._values[2]
+
+    @property
     def speed(self) -> Speed:
         """The speed of the device."""
-        return self._speed
+        return Speed(self._values[3])
 
     @property
     def usb_version(self) -> float:
         """The USB specification release number, decoded from self.bcdUSB."""
-        return (self.bcdUSB >> 12) * 10 + \
-               (self.bcdUSB >> 8 & 15) + \
-               (self.bcdUSB >> 4 & 15) * 0.1 + \
-               (self.bcdUSB & 15) * 0.01
+        return (self.bcdUSB >> 12     ) * 10   + \
+               (self.bcdUSB >>  8 & 15)        + \
+               (self.bcdUSB >>  4 & 15) * 0.1  + \
+               (self.bcdUSB       & 15) * 0.01
 
     @property
     def device_revision(self) -> float:
         """The device revision number, decoded from self.bcdDevice."""
-        return (self.bcdDevice >> 12) * 10 + \
-               (self.bcdDevice >> 8 & 15) + \
-               (self.bcdDevice >> 4 & 15) * 0.1 + \
-               (self.bcdDevice & 15) * 0.01
+        return (self.bcdDevice >> 12     ) * 10   + \
+               (self.bcdDevice >>  8 & 15)        + \
+               (self.bcdDevice >>  4 & 15) * 0.1  + \
+               (self.bcdDevice       & 15) * 0.01
 
     #@property
     #def device_class(self) -> USBClass:
