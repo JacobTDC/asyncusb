@@ -32,3 +32,10 @@ source = "vcs"
 exclude = [
   ".github",
 ]
+
+[tool.mypy]
+python_version = 3.12
+
+[[tool.mypy.overrides]]
+module = "asyncusb._libusb"
+ignore_errors = true
