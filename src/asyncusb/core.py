@@ -7,7 +7,7 @@ from collections import deque
 from contextlib import contextmanager, asynccontextmanager
 from codecs import decode
 from ctypes import POINTER, addressof, byref, c_int, c_ubyte, pointer
-from enum import Enum, IntEnum, Flag, auto
+from enum import Enum, IntEnum, IntFlag, Flag, auto
 from functools import wraps
 from itertools import takewhile
 from packaging.version import Version
@@ -17,7 +17,6 @@ from warnings import warn
 from weakref import WeakSet, WeakValueDictionary, finalize, ref
 
 from . import _libusb
-from ._types import ImmutableStructProxyMeta, ImmutableStructProxy
 
 
 
@@ -295,162 +294,337 @@ class EndpointType(Enum):
     BULK =        _libusb.LIBUSB_ENDPOINT_TRANSFER_TYPE_BULK        # 2
     INTERRUPT =   _libusb.LIBUSB_ENDPOINT_TRANSFER_TYPE_INTERRUPT   # 3
 
+    @classmethod
+    def from_bmAttributes(cls, bmAttributes):
+        return cls(bmAttributes & _libusb.LIBUSB_TRANSFER_TYPE_MASK)
 
 
-class Endpoint(ImmutableStructProxy):
-    """A wrapper for libusb_endpoint_descriptor."""
 
-    __slots__ = ('_interface',)
-    _struct_ = _libusb.struct_libusb_endpoint_descriptor
-    _hidden_fields_ = ('bDescriptorType', 'bLength', 'extra', 'extra_length')
+class EndpointIsoSyncType(Enum):
+    """An enum representing the sync type of an isochronous endpoint."""
+    NONE =     _libusb.LIBUSB_ISO_SYNC_TYPE_NONE     # 0
+    ASYNC =    _libusb.LIBUSB_ISO_SYNC_TYPE_ASYNC    # 1
+    ADAPTIVE = _libusb.LIBUSB_ISO_SYNC_TYPE_ADAPTIVE # 2
+    SYNC =     _libusb.LIBUSB_ISO_SYNC_TYPE_SYNC     # 3
 
-    def __init__(self, desc, interface):
-        """
-        Should not be instantiated from user code.
-        Use Interface.endpoints instead.
-        """
+    @classmethod
+    def from_bmAttributes(cls, bmAttributes):
+        return cls((bmAttributes & _libusb.LIBUSB_ISO_SYNC_TYPE_MASK) >> 2)
 
-        super().__init__(desc)
+
+
+class EndpointIsoUsageType(Enum):
+    """An enum representing the usage type of an isochronous endpoint."""
+    DATA =     _libusb.LIBUSB_ISO_USAGE_TYPE_DATA     # 0
+    FEEDBACK = _libusb.LIBUSB_ISO_USAGE_TYPE_FEEDBACK # 1
+    IMPLICIT = _libusb.LIBUSB_ISO_USAGE_TYPE_IMPLICIT # 2
+
+    @classmethod
+    def from_bmAttributes(cls, bmAttributes):
+        return cls((bmAttributes & _libusb.LIBUSB_ISO_USAGE_TYPE_MASK) >> 4)
+
+
+
+class Endpoint:
+    __slots__ = ('_struct', '_interface')
+
+    def __init__(self, struct, interface):
+        if not isinstance(struct, _libusb.libusb_endpoint_descriptor):
+            raise TypeError("expected instance of libusb_interface_descriptor")
+
+        self._struct = struct
         self._interface = interface
 
     def __repr__(self):
         return f"<{type(self).__module__}.{type(self).__name__} 0x{self.bEndpointAddress:0{2}X}>"
 
     def __int__(self):
-        """Returns self.bEndpointAddress."""
-        return self.bEndpointAddress
+        """Returns self.bEndpointAddress"""
+        return self._struct.bEndpointAddress
 
     @property
-    def extra(self) -> list[int]:
-        return self._contents.extra[:self._contents.extra_length]
+    def bEndpointAddress(self) -> int:
+        return self._struct.bEndpointAddress
+
+    @property
+    def bmAttributes(self) -> int:
+        return self._struct.bmAttributes
+
+    @property
+    def wMaxPacketSize(self) -> int:
+        return self._struct.wMaxPacketSize
+
+    @property
+    def bInterval(self) -> int:
+        return self._struct.bInterval
+
+    @property
+    def bRefresh(self) -> int:
+        return self._struct.bRefresh
+
+    @property
+    def bSynchAddress(self) -> int:
+        return self._struct.bSynchAddress
 
     @property
     def direction(self) -> EndpointDirection:
-        """The directionality of this endpoint, as an EndpointDirection value."""
-        return EndpointDirection(self.bEndpointAddress & _libusb.LIBUSB_ENDPOINT_DIR_MASK)
+        """The directionality of this endpoint."""
+        return EndpointDirection(self._struct.bEndpointAddress &
+                                 _libusb.LIBUSB_ENDPOINT_DIR_MASK)
 
     @property
     def transfer_type(self) -> EndpointType:
-        """The transfer type of this endpoint, as an EndpointType value."""
-        return EndpointType(self.bmAttributes & 0b11)
+        """The transfer type of this endpoint."""
+        return EndpointType.from_bmAttributes(self._struct.bmAttributes)
 
+    @property
+    def iso_sync_type(self) -> EndpointIsoSyncType | None:
+        if self.transfer_type is EndpointType.ISOCHRONOUS:
+            return EndpointIsoSyncType.from_bmAttributes(
+                self._struct.bmAttributes)
+        else:
+            return None
 
+    @property
+    def iso_usage_type(self) -> EndpointIsoUsageType | None:
+        if self.transfer_type is EndpointType.ISOCHRONOUS:
+            return EndpointIsoUsageType.from_bmAttributes(
+                self._struct.bmAttributes)
+        else:
+            return None
 
-class Interface(ImmutableStructProxy):
-    """
-    A wrapper for libusb_interface_descriptor.
-
-    This class, unlike its relatives, does not support int(self). This is
-    due to the fact that the interface is identified using a combination of
-    both self.bInterfaceNumber and self.bAlternateSetting.
-
-    For bNumEndpoints, use len(self.endpoints).
-    """
-
-    __slots__ = ('_config', '_endpoints')
-    _struct_ = _libusb.struct_libusb_interface_descriptor
-    _hidden_fields_ = ('bDescriptorType', 'bLength', 'bNumEndpoints', 'endpoint', 'extra', 'extra_length')
-
-    def __init__(self, desc, config):
+    @property
+    def interval_ms(self) -> float | None:
         """
-        Should not be instantiated from user code.
-        Use Configuration.interfaces instead.
+        The data polling interval, in milliseconds. For a bulk endpoint, this
+        represents the rate at which the endpoint may respond with a NAK
+        (Negative Acknowledgment).
         """
 
-        super().__init__(desc)
+        bInterval = self._struct.bInterval
+        if bInterval == 0:
+            return None
+        if self.transfer_type is EndpointType.BULK:
+            return bInterval * 0.125
+        elif self._interface._config._dev_speed >= Speed.HIGH:
+            return float(2 ** (bInterval - 4))
+        else:
+            return float(bInterval)
+
+    @property
+    def refresh_ms(self) -> float | None:
+        """
+        The synchronization feedback rate for isochronous endpoints, in
+        milliseconds.
+        """
+
+        bRefresh = self._struct.bRefresh
+        if bRefresh == 0:
+            return None
+        if self._interface._config._dev_speed >= Speed.HIGH:
+            return float(2 ** (bRefresh - 3))
+        else:
+            return float(2 ** bRefresh)
+
+    def get_extras(self) -> bytes:
+        struct = self._struct
+        arr = POINTER(c_ubyte * struct.extra_length).from_buffer(struct.extra)
+        return bytes(arr.contents)
+
+
+
+class Interface:
+    __slots__ = ('_struct', '_config', '_endpoints')
+
+    def __init__(self, struct, config):
+        if not isinstance(struct, _libusb.libusb_interface_descriptor):
+            raise TypeError("expected instance of libusb_interface_descriptor")
+
+        self._struct = struct
         self._config = config
-        self._endpoints = tuple( Endpoint(ept, self) for ept in self._contents.endpoint[:self._contents.bNumEndpoints] )
+        self._endpoints = tuple(Endpoint(ept, self) for ept in struct.endpoint[:struct.bNumEndpoints])
+
+    def __getitem__(self, key):
+        return self._endpoints[key]
+
+    def __len__(self):
+        return len(self._endpoints)
+
+    def __contains__(self, value):
+        return value in self._endpoints
+
+    def __iter__(self):
+        return iter(self._endpoints)
+
+    def __reversed__(self):
+        return reversed(self._endpoints)
 
     def __repr__(self):
         return f"<{type(self).__module__}.{type(self).__name__} {self.bInterfaceNumber}[{self.bAlternateSetting}]>"
 
     @property
-    def extra(self) -> list[int]:
-        return self._contents.extra[:self._contents.extra_length]
+    def bInterfaceNumber(self):
+        return self._struct.bInterfaceNumber
 
     @property
-    def endpoints(self) -> list[Endpoint]:
-        """A list of Endpoints defined under this Interface."""
-        return self._endpoints
+    def bAlternateSetting(self) -> int:
+        return self._struct.bAlternateSetting
 
-    #@property
-    #def interface_class(self) -> USBClass:
-    #    """The defined class code of the interface."""
-    #    return USBClass(self.bInterfaceClass)
+    @property
+    def bInterfaceClass(self) -> USBClass:
+        return USBClass(self._struct.bInterfaceClass)
 
+    @property
+    def bInterfaceSubClass(self) -> USBClass:
+        return USBClass(self._struct.bInterfaceSubClass)
 
+    @property
+    def bInterfaceProtocol(self) -> int:
+        return self._struct.bInterfaceProtocol
 
-class Configuration(ImmutableStructProxy):
-    """
-    A wrapper for libusb_config_descriptor.
-
-    Configuration instances are not tied to their "parent" Context and will
-    survive until garbage collection, even if the Context is closed.
-
-    For bNumInterfaces, use len(self.interfaces).
-    """
-
-    __slots__ = ('__weakref__', '_interfaces', '_max_power')
-    _struct_ = _libusb.struct_libusb_config_descriptor
-    _hidden_fields_ = ('MaxPower', 'bDescriptorType', 'bLength', 'bNumInterfaces', 'extra', 'extra_length', 'interface')
-
-    def __init__(self, device_obj, index):
+    @property
+    def iInterface(self) -> int:
         """
-        Should not be instantiated from user code.
-        Use Device.configs instead.
+        A pointer to the string descriptor on the device describing this
+        interface, or 0 if none.
         """
+        return self._struct.iInterface
 
-        # Get the config descriptor.
-        desc_ptr = POINTER(_libusb.struct_libusb_config_descriptor)()
-        _catch( _libusb.libusb_get_config_descriptor(device_obj, index,
-                                                     byref(desc_ptr)) )
-        super().__init__(desc_ptr.contents)
+    def get_extras(self) -> bytes:
+        struct = self._struct
+        arr = POINTER(c_ubyte * struct.extra_length).from_buffer(struct.extra)
+        return bytes(arr.contents)
 
-        # Free the descriptor on finalization.
-        finalize(self, _libusb.libusb_free_config_descriptor, desc_ptr)
 
-        # Calculate the negotiated power usage of the device.
-        if _libusb.libusb_get_device_speed(device_obj) >= Speed.SUPER:
-            self._max_power = self._contents.MaxPower * 8
-        else:
-            self._max_power = self._contents.MaxPower * 2
 
-        # Create nested tuples of Interface instances.
-        self._interfaces = tuple( tuple( Interface(alt, self) for alt in intf.altsetting[:intf.num_altsetting] ) for intf in self._contents.interface[:self._contents.bNumInterfaces] )
+class InterfaceAltCollection:
+    __slots__ = ('_number', '_altsettings')
+
+    def __init__(self, interface_number, struct, config):
+        if not isinstance(struct, _libusb.libusb_interface):
+            raise TypeError("expected instance of libusb_interface")
+
+        self._number = interface_number
+        self._altsettings = tuple(Interface(alt, config) for alt in struct.altsetting[:struct.num_altsetting])
+
+    def __getitem__(self, key):
+        return self._altsettings[key]
+
+    def __len__(self):
+        return len(self._altsettings)
+
+    def __contains__(self, value):
+        return value in self._altsettings
+
+    def __iter__(self):
+        return iter(self._altsettings)
+
+    def __reversed__(self):
+        return reversed(self._altsettings)
 
     def __int__(self):
-        """Equivalent to self.bConfigurationValue."""
-        return self.bConfigurationValue
+        """Returns self.bInterfaceNumber."""
+        return self._number
+
+    def __repr__(self):
+        return f"<{type(self).__module__}.{type(self).__name__} {self._number}>"
+
+    @property
+    def bInterfaceNumber(self):
+        return self._number
+
+
+
+class ConfigAttribute(IntFlag):
+    POWERED =       0b10000000
+    SELF_POWERED =  0b01000000
+    REMOTE_WAKEUP = 0b00100000
+
+
+
+class Configuration:
+    __slots__ = ('_struct', '_dev_speed', '_interfaces')
+
+    def __init__(self, device_obj, index):
+        if not isinstance(device_obj, _libusb.libusb_device):
+            raise TypeError("expected instance of libusb_device")
+
+        # Get the config descriptor.
+        struct_ptr = POINTER(_libusb.struct_libusb_config_descriptor)()
+        _catch( _libusb.libusb_get_config_descriptor(device_obj, index,
+                                                     byref(struct_ptr)) )
+        struct = struct_ptr.contents
+        finalize(struct, _libusb.libusb_free_config_descriptor, struct_ptr)
+
+        self._struct = struct
+        self._dev_speed = _libusb.libusb_get_device_speed(device_obj)
+
+        self._interfaces = tuple(InterfaceAltCollection(i, intf, self) for (i, intf) in enumerate(struct.interface[:struct.bNumInterfaces]))
+
+    def __getitem__(self, key):
+        return self._interfaces[key]
+
+    def __len__(self):
+        return len(self._interfaces)
+
+    def __contains__(self, value):
+        return value in self._interfaces
+
+    def __iter__(self):
+        return iter(self._interfaces)
+
+    def __reversed__(self):
+        return reversed(self._interfaces)
+
+    def __int__(self):
+        """Returns self.bConfigurationValue."""
+        return self._struct.bConfigurationValue
 
     def __repr__(self):
         return f"<{type(self).__module__}.{type(self).__name__} {self.bConfigurationValue}: {self.max_power} mA>"
 
     @property
-    def extra(self) -> list[int]:
-        return self._contents.extra[:self._contents.extra_length]
+    def bNumInterfaces(self) -> int:
+        return self._struct.bNumInterfaces
 
     @property
-    def interfaces(self) -> tuple[tuple[Interface]]:
-        """
-        A list (of lists) of Interfaces defined under this Configuration.
-        Structured as self.interfaces[interface][altsetting].
-        """
-        return self._interfaces
+    def bConfigurationValue(self) -> int:
+        return self._struct.bConfigurationValue
+
+    @property
+    def iConfiguration(self) -> int:
+        return self._struct.iConfiguration
+
+    @property
+    def bmAttributes(self) -> int:
+        return self._struct.bmAttributes
+
+    @property
+    def bMaxPower(self) -> int:
+        return self._struct.MaxPower
+
+    @property
+    def attributes(self) -> ConfigAttribute:
+        """Attributes of this config, decoded from bmAttributes."""
+        return ConfigAttribute(self._struct.bmAttributes & 0b11100000)
 
     @property
     def max_power(self) -> int:
-        """Maximum current draw of the Configuration, in milliamps."""
-        return self._max_power
+        """
+        The maximum current draw of the device from this bus in this
+        configuration, in milliamps, as calculated from bMaxPower and the
+        negotiated device speed.
+        """
 
-    @property
-    def self_powered(self) -> bool:
-        """If the device is self-powered."""
-        return bool(self._contents.bmAttributes & (1 << 6))
+        if self._dev_speed >= Speed.SUPER:
+            return self._struct.MaxPower * 8
+        else:
+            return self._struct.MaxPower * 2
 
-    @property
-    def remote_wakeup(self) -> bool:
-        """If the device supports remote wakeup."""
-        return bool(self._contents.bmAttributes & (1 << 5))
+    def get_extras(self) -> bytes:
+        struct = self._struct
+        arr = POINTER(c_ubyte * struct.extra_length).from_buffer(struct.extra)
+        return bytes(arr.contents)
 
 
 
@@ -1069,7 +1243,7 @@ class Speed(IntEnum):
 
 
 
-class _DeviceMeta(ImmutableStructProxyMeta):
+class _DeviceMeta:
     """
     A scoped-singleton meta, where the scope is the address of the
     provided libusb_device (in a Context).
@@ -1086,21 +1260,11 @@ class _DeviceMeta(ImmutableStructProxyMeta):
                 context._devices[key] = instance
                 return instance
 
-class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
-    """
-    A wrapper for libusb_device and libusb_device_descriptor.
-
-    For bNumConfigurations, use len(device.configs).
-    """
-
+class Device(metaclass=_DeviceMeta):
     __slots__ = ('__weakref__', '_obj', '_context', '_configs', '_values',
-                 '_unref')
-    _struct_ = _libusb.struct_libusb_device_descriptor
-    _hidden_fields_ = ('bDescriptorType', 'bLength', 'bNumConfigurations')
+                 '_unref', '_struct')
 
     def __init__(self, device_ref, context):
-        super().__init__()
-
         # Hold reference.
         _libusb.libusb_ref_device(device_ref)
 
@@ -1108,8 +1272,8 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
         self._context = context
 
         # Populate the device descriptor.
-        _catch( _libusb.libusb_get_device_descriptor(device_ref,
-                                                     byref(self._contents)) )
+        self._struct = _libusb.libusb_device_descriptor()
+        _catch(_libusb.libusb_get_device_descriptor(device_ref, self._struct))
 
         # Get some static values.
         self._values = (
@@ -1120,8 +1284,7 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
         )
 
         # Get configurations.
-        self._configs = tuple( Configuration(device_ref, i) for i in range(
-            0, self._contents.bNumConfigurations) )
+        self._configs = tuple(Configuration(device_ref, i) for i in range(0, self._struct.bNumConfigurations))
 
         # Schedule finalization within the Context, to be invoked
         # either at garbage collection or upon exiting the context.
@@ -1138,14 +1301,20 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
     def __repr__(self):
         return f"<{type(self).__module__}.{type(self).__name__} Bus {self.bus_number:03d} Device {self.device_address:03d} {self.idVendor:04X}:{self.idProduct:04X}>"
 
-    def __bool__(self):
-        """
-        Return bool(self).
-        Used to test if the device reference is still valid. Should return
-        True if the parent Context hasn't been exited.
-        """
+    def __getitem__(self, key):
+        return self._configs[key]
 
-        return hasattr(self, '_obj')
+    def __len__(self):
+        return len(self._configs)
+
+    def __contains__(self, value):
+        return value in self._configs
+
+    def __iter__(self):
+        return iter(self._configs)
+
+    def __reversed__(self):
+        return reversed(self._configs)
 
     @asynccontextmanager
     async def open(self) -> Generator[DeviceHandle, None, None]:
@@ -1169,6 +1338,54 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
             yield handle
         finally:
             await asyncio.shield(close())
+
+    @property
+    def bcdUSB(self) -> int:
+        return self._struct.bcdUSB
+
+    @property
+    def bDeviceClass(self) -> USBClass:
+        return USBClass(self._struct.bDeviceClass)
+
+    @property
+    def bDeviceSubClass(self) -> USBClass:
+        return USBClass(self._struct.bDeviceSubClass)
+
+    @property
+    def bDeviceProtocol(self) -> int:
+        return self._struct.bDeviceProtocol
+
+    @property
+    def bMaxPacketSize0(self) -> int:
+        return self._struct.bMaxPacketSize0
+
+    @property
+    def idVendor(self) -> int:
+        return self._struct.idVendor
+
+    @property
+    def idProduct(self) -> int:
+        return self._struct.idProduct
+
+    @property
+    def bcdDevice(self) -> int:
+        return self._struct.bcdDevice
+
+    @property
+    def iManufacturer(self) -> int:
+        return self._struct.iManufacturer
+
+    @property
+    def iProduct(self) -> int:
+        return self._struct.iProduct
+
+    @property
+    def iSerialNumber(self) -> int:
+        return self._struct.iSerialNumber
+
+    @property
+    def bNumConfigurations(self) -> int:
+        return self._struct.bNumConfigurations
 
     @property
     def bus_number(self) -> int:
@@ -1205,16 +1422,6 @@ class Device(ImmutableStructProxy, metaclass=_DeviceMeta):
                (self.bcdDevice >>  8 & 15)        + \
                (self.bcdDevice >>  4 & 15) * 0.1  + \
                (self.bcdDevice       & 15) * 0.01
-
-    #@property
-    #def device_class(self) -> USBClass:
-    #    """The defined USB class of the device."""
-    #    return USBClass(self.bDeviceClass)
-
-    @property
-    def configs(self) -> tuple[Configuration]:
-        """A tuple containing all the Configurations for this device."""
-        return self._configs
 
     def get_active_config(self) -> Configuration:
         """
@@ -2194,8 +2401,12 @@ __all__ = [
     'NotSupportedError',
     'EndpointDirection',
     'EndpointType',
+    'EndpointIsoSyncType',
+    'EndpointIsoUsageType',
     'Endpoint',
     'Interface',
+    'InterfaceAltCollection',
+    'ConfigAttribute',
     'Configuration',
     'DeviceHandle',
     'Speed',
