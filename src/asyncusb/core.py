@@ -12,7 +12,7 @@ from functools import wraps
 from itertools import takewhile
 from packaging.version import Version
 from struct import Struct
-from typing import Callable, Generator
+from typing import Any, Callable, Generator, AsyncGenerator, Union
 from warnings import warn
 from weakref import WeakSet, WeakValueDictionary, finalize, ref
 
@@ -834,13 +834,13 @@ class DeviceHandle:
         return self._closing
 
 
-    def get_device(self):
+    def get_device(self) -> 'Device':
         """Get the Device this handle is attached to."""
         return Device(_libusb.libusb_get_device(self._obj).contents,
                       self._context)
 
 
-    def get_string(self, index: int) -> str:
+    def get_string(self, index: int) -> str | None:
         if index == 0:
             return None
         elif index < 0 or index > 255:
@@ -971,7 +971,7 @@ class DeviceHandle:
         return memoryview(buffer)[:transferred.value].tobytes()
 
 
-    def kernel_driver_active(self, interface: Interface | int):
+    def kernel_driver_active(self, interface: Interface | int) -> bool:
         """Determine if a kernel driver is active on an interface."""
 
         if isinstance(interface, Interface):
@@ -979,7 +979,7 @@ class DeviceHandle:
         return bool( _catch(_libusb.libusb_kernel_driver_active(self._obj,
                                                                 interface) ))
 
-    def detach_kernel_driver(self, interface: Interface | int):
+    def detach_kernel_driver(self, interface: Interface | int) -> None:
         """
         Detach a kernel driver from an interface.
 
@@ -991,7 +991,7 @@ class DeviceHandle:
             interface = interface.bInterfaceNumber
         _catch( _libusb.libusb_detach_kernel_driver(self._obj, interface) )
 
-    def attach_kernel_driver(self, interface: Interface | int):
+    def attach_kernel_driver(self, interface: Interface | int) -> None:
         """
         Re-attach an interface's kernel driver, which was previously detached
         using detach_kernel_driver().
@@ -1001,7 +1001,7 @@ class DeviceHandle:
             interface = interface.bInterfaceNumber
         _catch( _libusb.libusb_attach_kernel_driver(self._obj, interface) )
 
-    def set_auto_detach_kernel_driver(self, enable: bool):
+    def set_auto_detach_kernel_driver(self, enable: bool) -> None:
         """
         Set if libusb should automatically handle detaching and reattaching
         kernel drivers.
@@ -1009,7 +1009,7 @@ class DeviceHandle:
         _catch( _libusb.libusb_set_auto_detach_kernel_driver(self._obj, enable) )
 
 
-    def claim_interface(self, interface: Interface | int):
+    def claim_interface(self, interface: Interface | int) -> None:
         """
         Claim an interface.
 
@@ -1024,7 +1024,7 @@ class DeviceHandle:
             interface = interface.bInterfaceNumber
         _catch( _libusb.libusb_claim_interface(self._obj, interface) )
 
-    def release_interface(self, interface: Interface | int):
+    def release_interface(self, interface: Interface | int) -> None:
         """
         Release an interface.
 
@@ -1062,7 +1062,7 @@ class DeviceHandle:
 
 
     def set_interface_alt_setting(self, interface: Interface | int,
-                                  altsetting: int = None):
+                                  altsetting: int | None = None) -> None:
         """
         set_interface_alt_setting(interface_obj)
         set_interface_alt_setting(interface_num, alt_num)
@@ -1080,7 +1080,7 @@ class DeviceHandle:
         _catch( _libusb.libusb_set_interface_alt_setting(
             self._obj, interface, altsetting) )
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Perform a USB port reset to reinitialize a device.
 
@@ -1096,7 +1096,7 @@ class DeviceHandle:
         """
         _catch( _libusb.libusb_reset_device(self._obj) )
 
-    def clear_halt(self, endpoint: int | Endpoint):
+    def clear_halt(self, endpoint: int | Endpoint) -> None:
         """Clear the halt/stall condition for an endpoint."""
 
         _catch( _libusb.libusb_clear_halt(self._obj, int(endpoint)) )
@@ -1114,7 +1114,7 @@ class DeviceHandle:
         _catch( _libusb.libusb_get_configuration(self._obj, config) )
         return config.value
 
-    def set_configuration(self, config: int | Configuration):
+    def set_configuration(self, config: int | Configuration) -> None:
         """Sets the active configuration for the device."""
 
         _catch( _libusb.libusb_set_configuration(self._obj, int(config)) )
@@ -1129,7 +1129,7 @@ class DeviceHandle:
         return True
 
 
-    def cancel_all(self):
+    def cancel_all(self) -> None:
         """
         Cancel all registered transfers. Does not prevent them from
         resubmitting.
@@ -1150,7 +1150,7 @@ class DeviceHandle:
         """
         return not self._pending
 
-    async def wait_clear(self):
+    async def wait_clear(self) -> None:
         """
         Wait until there are no pending transfers for this handle. Not
         reliable if transfers are being managed from other threads.
@@ -1169,8 +1169,8 @@ class DeviceHandle:
     def fill_control_transfer(self, bmRequestType: int = 0,
                               bRequestCode: int = 0,
                               wValue: int = 0, wIndex: int = 0,
-                              data: collections.abc.Buffer = None,
-                              callback: Callable = None,
+                              data: collections.abc.Buffer | None = None,
+                              callback: Callable[['Transfer'], Any] | None = None,
                               timeout: int = 0) -> 'Transfer':
         """
         A helper function to create a new Transfer for this DeviceHandle and
@@ -1189,7 +1189,7 @@ class DeviceHandle:
         return transfer
 
     def fill_bulk_transfer(self, endpoint: int | Endpoint, buffer = None,
-                           callback: Callable = None,
+                           callback: Callable[['Transfer'], Any] | None = None,
                            timeout: int = 0) -> 'Transfer':
         """
         A helper function to create a new Transfer for this DeviceHandle and
@@ -1210,7 +1210,7 @@ class DeviceHandle:
         return transfer
 
     def fill_interrupt_transfer(self, endpoint: int | Endpoint, buffer = None,
-                                callback: Callable = None,
+                                callback: Callable[['Transfer'], Any] | None = None,
                                 timeout: int = 0) -> 'Transfer':
         """
         A helper function to create a new Transfer for this DeviceHandle and
@@ -1317,7 +1317,7 @@ class Device(metaclass=_DeviceMeta):
         return reversed(self._configs)
 
     @asynccontextmanager
-    async def open(self) -> Generator[DeviceHandle, None, None]:
+    async def open(self) -> AsyncGenerator[DeviceHandle, None]:
         """
         Open a DeviceHandle for I/O on this device.
 
@@ -1423,7 +1423,7 @@ class Device(metaclass=_DeviceMeta):
                (self.bcdDevice >>  4 & 15) * 0.1  + \
                (self.bcdDevice       & 15) * 0.01
 
-    def get_active_config(self) -> Configuration:
+    def get_active_config(self) -> Configuration | None:
         """
         Get the active Configuration for this device.
 
@@ -1450,8 +1450,10 @@ class Device(metaclass=_DeviceMeta):
         for config in self._configs:
             if config.bConfigurationValue == value:
                 return config
+        else:
+            assert False
 
-    def get_parent(self) -> 'Device':
+    def get_parent(self) -> Union['Device', None]:
         """Get the parent device."""
 
         if not self:
@@ -1484,7 +1486,7 @@ class TransferBuffer(collections.abc.MutableSequence):
 
     def __init__(self, data: int | collections.abc.Buffer = 0):
         self._buffer = bytearray(data)
-        self._views = WeakValueDictionary()
+        self._views: WeakValueDictionary[int, memoryview] = WeakValueDictionary()
         self._lock = threading.Lock()
         self._acquired = False
 
@@ -1540,15 +1542,15 @@ class TransferBuffer(collections.abc.MutableSequence):
         return len(self._buffer)
 
     @_modify
-    def insert(self, index, item):
+    def insert(self, index, item) -> None:
         self._buffer.insert(index, item)
 
     @_modify
-    def extend(self, iterable):
+    def extend(self, iterable) -> None:
         self._buffer.extend(iterable)
 
     @_modify
-    def clear(self):
+    def clear(self) -> None:
         self._buffer.clear()
 
 
@@ -1576,7 +1578,9 @@ class ControlTransferBuffer(TransferBuffer):
     __slots__ = ()
     _struct = Struct('<BBHHH')
 
-    def __init__(self, bmRequestType: int = 0, bRequestCode: int = 0, wValue: int = 0, wIndex: int = 0, data: int | collections.abc.Buffer = None):
+    def __init__(self, bmRequestType: int = 0, bRequestCode: int = 0,
+                 wValue: int = 0, wIndex: int = 0,
+                 data: int | collections.abc.Buffer | None = None):
         if isinstance(data, int) or data is None:
             wLength = data or 0
             self._buffer = bytearray(8 + wLength)
@@ -1635,17 +1639,17 @@ class ControlTransferBuffer(TransferBuffer):
         return len(self._buffer) - 8
 
     @TransferBuffer._modify
-    def insert(self, index, item):
+    def insert(self, index, item) -> None:
         self._buffer.insert(index + 8, item)
         self._resize()
 
     @TransferBuffer._modify
-    def extend(self, iterable_of_ints):
+    def extend(self, iterable_of_ints) -> None:
         self._buffer.extend(iterable_of_ints)
         self._resize()
 
     @TransferBuffer._modify
-    def clear(self, /):
+    def clear(self) -> None:
         del self._buffer[8:]
         self._resize()
 
@@ -1792,11 +1796,11 @@ class Transfer:
         self._lock = threading.Lock()
         self._transfer = transfer_ptr.contents
         self._state = _TransferState(0)
-        self._buffer = None
-        self._callback = None
-        self._callback_loop = None
+        self._buffer: TransferBuffer | None = None
+        self._callback: Callable[['Transfer'], Any] | None = None
+        self._callback_loop: asyncio.AbstractEventLoop | None = None
         self._flags = TransferFlag(0)
-        self._waiters = deque()
+        self._waiters: deque[asyncio.Future] = deque()
 
         # The underlying callback invoked by libusb. This will be executed
         # from the Context's event loop thread.
@@ -1904,7 +1908,7 @@ class Transfer:
 
 
     @_acquire
-    def submit(self):
+    def submit(self) -> None:
         """
         Submit the transfer to the device.
         Cannot be called on a pending transfer.
@@ -1939,7 +1943,7 @@ class Transfer:
 
 
     @_none_if_freed
-    def cancel(self):
+    def cancel(self) -> None:
         """
         Cancel the transfer. Does nothing if the transfer is not pending.
 
@@ -1963,7 +1967,7 @@ class Transfer:
                         raise _error(err)
 
 
-    async def wait(self):
+    async def wait(self) -> None:
         """
         Wait for the transfer to complete or cancel.
 
@@ -1974,7 +1978,7 @@ class Transfer:
         # that _waiters isn't being modified in two places at once.
         with self._lock:
             if not _TransferState.PENDING in self._state:
-                return True
+                return
 
             future = asyncio.get_event_loop().create_future()
             self._waiters.append(future)
@@ -1982,7 +1986,7 @@ class Transfer:
         # Drop lock to await without deadlocking single-threads.
         try:
             await future
-            return True
+            return
         finally:
             with self._lock:
                 self._waiters.remove(future)
@@ -2010,7 +2014,8 @@ class Transfer:
 
 
     @_acquire
-    def set_callback(self, callback: Callable[['Transfer'], None], loop = None):
+    def set_callback(self, callback: Callable[['Transfer'], Any] | None,
+                     loop: asyncio.AbstractEventLoop | None = None) -> None:
         """
         Set the callback function to be invoked on completion. Optionally
         provide a loop to execute the callback from; defaults to the
@@ -2108,13 +2113,13 @@ class Transfer:
 
     @property
     @_none_if_freed
-    def buffer(self) -> TransferBuffer:
+    def buffer(self) -> TransferBuffer | None:
         """A TransferBuffer containing the data to send."""
         return self._buffer
 
     @buffer.setter
     @_acquire
-    def buffer(self, value: TransferBuffer):
+    def buffer(self, value: TransferBuffer | None):
         if not isinstance(value, TransferBuffer) and value is not None:
             raise TypeError("buffer must be a TransferBuffer object or None")
 
@@ -2166,14 +2171,14 @@ class Context:
     __slots__ = ('_obj', '_loop', '_timed_events', '_devices', '_pollfds',
                  '_pollfd_added_cb', '_pollfd_removed_cb', '_opts', '_lock')
 
-    def __init__(self, *, loop: asyncio.AbstractEventLoop = None,
+    def __init__(self, *, loop: asyncio.AbstractEventLoop | None = None,
                  no_discovery: bool = False):
 
         self._loop = loop or asyncio.get_event_loop()
         self._lock = threading.Lock()
         self._obj = POINTER(_libusb.struct_libusb_context)()
-        self._devices = WeakValueDictionary()
-        self._pollfds = set()
+        self._devices: WeakValueDictionary[int, Device] = WeakValueDictionary()
+        self._pollfds: set[int] = set()
 
         # Parse libusb context options.
         opts = []
@@ -2308,7 +2313,7 @@ class Context:
         return wrapper
 
     @_in_context
-    def set_debug(self, log_level: LogLevel):
+    def set_debug(self, log_level: LogLevel) -> None:
         """Set the log level of the underlying libusb_context."""
 
         if _libusb_version < 0x1000000160000: # 1.0.22
@@ -2339,7 +2344,7 @@ class Context:
 
     @_in_context
     @asynccontextmanager
-    async def wrap_sys_device(self, sys_dev: int) -> Generator[DeviceHandle, None, None]:
+    async def wrap_sys_device(self, sys_dev: int) -> AsyncGenerator[DeviceHandle, None]:
         """
         Open a DeviceHandle for I/O from a system device handle.
 
