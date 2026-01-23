@@ -1243,26 +1243,20 @@ class Speed(IntEnum):
 
 
 
-class _DeviceMeta:
-    """
-    A scoped-singleton meta, where the scope is the address of the
-    provided libusb_device (in a Context).
-    """
-
-    def __call__(self, device_ref, context):
-        key = addressof(device_ref)
-
-        if key in context._devices:
-            return context._devices[key]
-        else:
-            with context._lock:
-                instance = super().__call__(device_ref, context)
-                context._devices[key] = instance
-                return instance
-
-class Device(metaclass=_DeviceMeta):
+class Device:
     __slots__ = ('__weakref__', '_obj', '_context', '_configs', '_values',
                  '_unref', '_struct')
+
+    def __new__(cls, device_ref, context):
+        key = addressof(device_ref)
+
+        if dev := context._devices.get(key, None):
+            return dev
+        else:
+            with context._lock:
+                instance = super().__new__(cls)
+                context._devices[key] = instance
+                return instance
 
     def __init__(self, device_ref, context):
         # Hold reference.
@@ -1315,29 +1309,6 @@ class Device(metaclass=_DeviceMeta):
 
     def __reversed__(self):
         return reversed(self._configs)
-
-    @asynccontextmanager
-    async def open(self) -> AsyncGenerator[DeviceHandle, None]:
-        """
-        Open a DeviceHandle for I/O on this device.
-
-        Not thread-safe. Must be called from the same thread as the Context
-        event loop.
-        """
-
-        if not self:
-            raise RuntimeError("invalid context")
-
-        handle = DeviceHandle(self._context)
-        close = handle._open(self._obj)
-
-        # Allow garbage collection.
-        del self
-
-        try:
-            yield handle
-        finally:
-            await asyncio.shield(close())
 
     @property
     def bcdUSB(self) -> int:
@@ -1422,6 +1393,29 @@ class Device(metaclass=_DeviceMeta):
                (self.bcdDevice >>  8 & 15)        + \
                (self.bcdDevice >>  4 & 15) * 0.1  + \
                (self.bcdDevice       & 15) * 0.01
+
+    @asynccontextmanager
+    async def open(self) -> AsyncGenerator[DeviceHandle, None]:
+        """
+        Open a DeviceHandle for I/O on this device.
+
+        Not thread-safe. Must be called from the same thread as the Context
+        event loop.
+        """
+
+        if not self:
+            raise RuntimeError("invalid context")
+
+        handle = DeviceHandle(self._context)
+        close = handle._open(self._obj)
+
+        # Allow garbage collection.
+        del self
+
+        try:
+            yield handle
+        finally:
+            await asyncio.shield(close())
 
     def get_active_config(self) -> Configuration | None:
         """
