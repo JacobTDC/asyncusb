@@ -17,6 +17,7 @@ from warnings import warn
 from weakref import WeakSet, WeakValueDictionary, finalize, ref
 
 from . import _libusb
+from ._types import Filterable
 
 
 
@@ -325,7 +326,7 @@ class EndpointIsoUsageType(Enum):
 
 
 
-class Endpoint:
+class Endpoint(Filterable):
     __slots__ = ('_struct', '_interface')
 
     def __init__(self, struct, interface):
@@ -433,7 +434,7 @@ class Endpoint:
 
 
 
-class Interface:
+class Interface(Filterable):
     __slots__ = ('_struct', '_config', '_endpoints')
 
     def __init__(self, struct, config):
@@ -542,7 +543,7 @@ class ConfigAttribute(IntFlag):
 
 
 
-class Configuration:
+class Configuration(Filterable):
     __slots__ = ('_struct', '_dev_speed', '_interfaces')
 
     def __init__(self, device_obj, index):
@@ -1243,7 +1244,7 @@ class Speed(IntEnum):
 
 
 
-class Device:
+class Device(Filterable):
     __slots__ = ('__weakref__', '_obj', '_context', '_configs', '_values',
                  '_unref', '_struct')
 
