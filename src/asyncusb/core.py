@@ -464,7 +464,7 @@ class Interface(Filterable):
         return f"<{type(self).__module__}.{type(self).__name__} {self.bInterfaceNumber}[{self.bAlternateSetting}]>"
 
     @property
-    def bInterfaceNumber(self):
+    def bInterfaceNumber(self) -> int:
         return self._struct.bInterfaceNumber
 
     @property
@@ -476,8 +476,8 @@ class Interface(Filterable):
         return USBClass(self._struct.bInterfaceClass)
 
     @property
-    def bInterfaceSubClass(self) -> USBClass:
-        return USBClass(self._struct.bInterfaceSubClass)
+    def bInterfaceSubClass(self) -> int:
+        return self._struct.bInterfaceSubClass
 
     @property
     def bInterfaceProtocol(self) -> int:
@@ -1320,8 +1320,8 @@ class Device(Filterable):
         return USBClass(self._struct.bDeviceClass)
 
     @property
-    def bDeviceSubClass(self) -> USBClass:
-        return USBClass(self._struct.bDeviceSubClass)
+    def bDeviceSubClass(self) -> int:
+        return self._struct.bDeviceSubClass
 
     @property
     def bDeviceProtocol(self) -> int:
