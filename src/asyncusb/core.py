@@ -78,94 +78,19 @@ class USBClass(IntEnum):
 
 
 
-# TODO: remove experimental RequestType classes or move to seperate submodule
-class RequestTypeFlags:
-    __slots__ = ()
-
-    def __or__(self, other):
-        if type(self) is type(other):
-            if isinstance(self, RequestTypeUnion):
-                return other
-            else:
-                return RequestTypeUnion(other.value)
-
-        elif isinstance(self, RequestTypeUnion):
-            if isinstance(other, RequestDirection):
-                value = self._value & 0b01111111 | other.value
-            elif isinstance(other, RequestType):
-                value = self._value & 0b10011111 | other.value
-            elif isinstance(other, RequestRecipient):
-                value = self._value & 0b11100000 | other.value
-            else:
-                raise TypeError("other must be instance of RequestTypeFlags")
-
-            return RequestTypeUnion(value)
-
-        elif isinstance(other, RequestTypeFlags):
-            return RequestTypeUnion(self.value | other.value)
-
-        else:
-            raise TypeError("other must be an instance of RequestTypeFlags")
-
-    def __int__(self):
-        return self.value
-
-    def __index__(self):
-        return self.value
-
-class RequestTypeUnion(RequestTypeFlags):
-    """
-    A combination of RequestDirection, RequestType, and RequestRecipient.
-    The result is a value appropriate for the bmRequestType field.
-    """
-    __slots__ = ('_value')
-    __key = object()
-
-    def __init__(self, value):
-        self._value = value
-
-    def __eq__(self, other):
-        return type(self) is type(other) and self._value == other._value
-
-    def __hash__(self):
-        return hash((self.__key, self._value))
-
-    def __repr__(self):
-        params = []
-        params.append(RequestDirection(self._value & 0b10000000).name)
-        params.append(RequestType(     self._value & 0b01100000).name)
-        params.append(RequestRecipient(self._value & 0b00011111).name)
-        return f"<RequestTypeUnion.{'|'.join(params)}: {int(self)}>"
-
-    @property
-    def value(self):
-        return self._value
-
-    @property
-    def direction(self):
-        return RequestDirection(self._value & 0b10000000)
-
-    @property
-    def type(self):
-        return RequestType(self._value & 0b01100000)
-
-    @property
-    def recipient(self):
-        return RequestRecipient(self._value & 0b00011111)
-
-class RequestDirection(RequestTypeFlags, Enum):
+class RequestDirection(IntEnum):
     """The direction bit field for bmRequestType."""
     OUT =   _libusb.LIBUSB_ENDPOINT_OUT                 # (0<<7)
     IN =    _libusb.LIBUSB_ENDPOINT_IN                  # (1<<7)
 
-class RequestType(RequestTypeFlags, Enum):
+class RequestType(IntEnum):
     """The type bit field for bmRequestType."""
     STANDARD =  _libusb.LIBUSB_REQUEST_TYPE_STANDARD    # (0<<5)
     CLASS =     _libusb.LIBUSB_REQUEST_TYPE_CLASS       # (1<<5)
     VENDOR =    _libusb.LIBUSB_REQUEST_TYPE_VENDOR      # (2<<5)
     RESERVED =  _libusb.LIBUSB_REQUEST_TYPE_RESERVED    # (3<<5)
 
-class RequestRecipient(RequestTypeFlags, Enum):
+class RequestRecipient(IntEnum):
     """The recipient bit field for bmRequestType."""
     DEVICE =    _libusb.LIBUSB_RECIPIENT_DEVICE         # (0<<0)
     INTERFACE = _libusb.LIBUSB_RECIPIENT_INTERFACE      # (1<<0)
@@ -2526,8 +2451,6 @@ __all__ = [
     'get_libusb_version',
     'LogLevel',
     'USBClass',
-    'RequestTypeFlags',
-    'RequestTypeUnion',
     'RequestDirection',
     'RequestType',
     'RequestRecipient',
