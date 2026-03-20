@@ -38,8 +38,12 @@ class FindFilter:
         else:
             name = f"{self._type.__module__}.{self._type.__name__}"
 
-        args = ", ".join((repr(self._query), *map(repr, self._subfilters)))
-        return f"{name}[{args}]"
+        argstr = ", ".join((repr(self._query), *map(repr, self._subfilters)))
+
+        if issubclass(self._type, Filterable):
+            return f"{name}[{argstr}]"
+        else:
+            return f"FindFilter({name}, {argstr})"
 
 
 class FilterableMeta(type):
