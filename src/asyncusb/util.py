@@ -12,7 +12,7 @@ def flatten(iterable: Iterable, depth: int = 1) -> Iterator:
 
 
 # This function is not public, and may change without notice.
-# Operates in O(V + E) time..
+# Operates in O(V + E) time.
 def _type_dfs(iterable, typ):
     """
     A generator function that flattens an iterable tree, yielding instances
@@ -51,10 +51,40 @@ _null = object()
 # This is a fully iterative implementation, and the only limit to how deep
 # it can search is how much memory is available.
 # Operates in O(D × (V + E)) time (worst case).
+# TODO: add complex query parameters and function support
+# TODO: allow FindFilter type of None for any type
 def find(iterable: Iterable, ffilter: FindFilter) -> Iterator:
     """
     Takes an iterable and lazily deep-searches it for a match to the given
     filter.
+
+    The following example would search a context for a device with a
+    DATA interface that contains an OUT endpoint, and get all parts of the
+    first match::
+
+        endpt_filter = core.Endpoint[{
+            "direction": core.EndpointDirection.OUT
+        }]
+        intf_filter = core.Interface[{
+            "bInterfaceClass": core.USBClass.DATA
+        }, endpt_filter]
+        cfg_filter = core.Configuration[None, intf_filter]
+        dev_filter = core.Device[None, cfg_filter]
+
+        dev = next(find(ctx.get_device_list(), dev_filter))
+        cfg = next(find(dev, cfg_filter))
+        intf = next(find(cfg, intf_filter))
+        endpt = next(find(intf, endpt_filter))
+
+    The following example would get ONLY a list of matching endpoints on a
+    device, with no respect to interfaces or configurations::
+
+        endpt_filter = core.Endpoint[{
+            "direction": core.EndpointDirection.OUT,
+            "transfer_type": core.EndpointType.BULK
+        }]
+
+        endpts = list(find(some_device, endpt_filter))
     """
 
     ftype, query, filters = getfilterparts(ffilter)

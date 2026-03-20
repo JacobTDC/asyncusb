@@ -327,6 +327,13 @@ class EndpointIsoUsageType(Enum):
 
 
 class Endpoint(Filterable):
+    """
+    A class representing an endpoint for an interface.
+
+    Can be filtered and searched for using util.find(...). Filters can be
+    created using Endpoint[...]. See Device or util.find for examples.
+    """
+
     __slots__ = ('_struct', '_interface')
 
     def __init__(self, struct, interface):
@@ -345,26 +352,50 @@ class Endpoint(Filterable):
 
     @property
     def bEndpointAddress(self) -> int:
+        """The address of this endpoint on the device."""
         return self._struct.bEndpointAddress
 
     @property
     def bmAttributes(self) -> int:
+        """
+        A bitmap of attributes which apply to the endpoint when it is
+        configured using it's parent Configuration.
+
+        The contained attributes are exposed via. self.transfer_type,
+        self.iso_sync_type, and self.iso_usage_type.
+        """
         return self._struct.bmAttributes
 
     @property
     def wMaxPacketSize(self) -> int:
+        """Maximum packet size this endpoint is capable of sending/receiving."""
         return self._struct.wMaxPacketSize
 
     @property
     def bInterval(self) -> int:
+        """
+        The data polling interval for this device.
+
+        Exposed in milliseconds via. self.interval_ms.
+        """
         return self._struct.bInterval
 
     @property
     def bRefresh(self) -> int:
+        """
+        The rate at which synchronization feedback is provided. This
+        generally only applies to audio devices.
+
+        Exposed in milliseconds via. self.refresh_ms.
+        """
         return self._struct.bRefresh
 
     @property
     def bSynchAddress(self) -> int:
+        """
+        The address of the synch endpoint. This generally only applies to
+        audio devices.
+        """
         return self._struct.bSynchAddress
 
     @property
@@ -428,6 +459,11 @@ class Endpoint(Filterable):
             return float(2 ** bRefresh)
 
     def get_extras(self) -> bytes:
+        """
+        Returns a bytes object containing any other unknown descriptors
+        that were paired with this endpoint.
+        """
+
         struct = self._struct
         arr = POINTER(c_ubyte * struct.extra_length).from_buffer(struct.extra)
         return bytes(arr.contents)
@@ -435,6 +471,15 @@ class Endpoint(Filterable):
 
 
 class Interface(Filterable):
+    """
+    A class representing an interface alt setting for a configuration.
+
+    Instances are also list-like objects containing Endpoint instances.
+
+    Can be filtered and searched using util.find(...). Filters can be created
+    using Interface[...]. See Device or util.find for examples.
+    """
+
     __slots__ = ('_struct', '_config', '_endpoints')
 
     def __init__(self, struct, config):
@@ -465,22 +510,33 @@ class Interface(Filterable):
 
     @property
     def bInterfaceNumber(self) -> int:
+        """The number of this interface."""
         return self._struct.bInterfaceNumber
 
     @property
     def bAlternateSetting(self) -> int:
+        """The value used to select this alternate setting for this interface."""
         return self._struct.bAlternateSetting
 
     @property
     def bInterfaceClass(self) -> USBClass:
+        """The USB class code for this interface."""
         return USBClass(self._struct.bInterfaceClass)
 
     @property
     def bInterfaceSubClass(self) -> int:
+        """
+        The USB subclass for this interface, qualified by the
+        bInterfaceClass value.
+        """
         return self._struct.bInterfaceSubClass
 
     @property
     def bInterfaceProtocol(self) -> int:
+        """
+        The USB protocol code for this interface, qualified by the
+        bInterfaceClass and bInterfaceSubClass values.
+        """
         return self._struct.bInterfaceProtocol
 
     @property
@@ -492,6 +548,11 @@ class Interface(Filterable):
         return self._struct.iInterface
 
     def get_extras(self) -> bytes:
+        """
+        Returns a bytes object containing any other unknown descriptors
+        that were paired with this interface.
+        """
+
         struct = self._struct
         arr = POINTER(c_ubyte * struct.extra_length).from_buffer(struct.extra)
         return bytes(arr.contents)
@@ -499,6 +560,12 @@ class Interface(Filterable):
 
 
 class InterfaceAltCollection:
+    """
+    A collection of interface alternate settings for a single interface.
+
+    Can be filtered and searched using util.find(...).
+    """
+
     __slots__ = ('_number', '_altsettings')
 
     def __init__(self, interface_number, struct, config):
@@ -544,6 +611,16 @@ class ConfigAttribute(IntFlag):
 
 
 class Configuration(Filterable):
+    """
+    A class representing a configuration on a USB device.
+
+    Instances are also list-like objects containing InterfaceAltCollection
+    instances (which in turn contain Interface instances).
+
+    Can be filtered and searched using util.find(...). Filters can be created
+    using Configuration[...]. See Device or util.find for examples.
+    """
+
     __slots__ = ('_struct', '_dev_speed', '_interfaces')
 
     def __init__(self, device_obj, index):
@@ -586,22 +663,34 @@ class Configuration(Filterable):
 
     @property
     def bNumInterfaces(self) -> int:
+        """The number of interfaces defined under this configuration."""
         return self._struct.bNumInterfaces
 
     @property
     def bConfigurationValue(self) -> int:
+        """The value used to select this configuration on the device."""
         return self._struct.bConfigurationValue
 
     @property
     def iConfiguration(self) -> int:
+        """
+        A pointer to the string descriptor on the device describing this
+        configuration, or 0 if none.
+        """
         return self._struct.iConfiguration
 
     @property
     def bmAttributes(self) -> int:
+        """A bitmap of configuration characteristics."""
         return self._struct.bmAttributes
 
     @property
     def bMaxPower(self) -> int:
+        """
+        An encoded value representing the maximum power consumption of the
+        USB device from this bus in this configuration. Converted to
+        milliamps and exposed as self.max_power.
+        """
         return self._struct.MaxPower
 
     @property
@@ -623,6 +712,11 @@ class Configuration(Filterable):
             return self._struct.MaxPower * 2
 
     def get_extras(self) -> bytes:
+        """
+        Returns a bytes object containing any other unknown descriptors
+        that were paired with this configuration.
+        """
+
         struct = self._struct
         arr = POINTER(c_ubyte * struct.extra_length).from_buffer(struct.extra)
         return bytes(arr.contents)
@@ -1245,6 +1339,34 @@ class Speed(IntEnum):
 
 
 class Device(Filterable):
+    """
+    A class representing a USB device on the host.
+
+    Instances are also list-like objects containing Configuration instances.
+
+    Can be filtered and searched using util.find(...). Filters can be created
+    using Device[...].
+
+    The following example would list all devices with a data interface that
+    contains at least one bulk in endpoint and one bulk out endpoint::
+
+        from util import find
+
+        ffilter = Device[None, Interface[{
+            'bInterfaceClass': USBClass.DATA
+        }, Endpoint[{
+            'transfer_type': EndpointType.BULK,
+            'direction': EndpointDirection.IN
+        }], Endpoint[{
+            'transfer_type': EndpointType.BULK,
+            'direction': EndpointDirection.OUT
+        }]]]
+
+        list(find(ctx.get_device_list(), ffilter))
+
+    See util.find for more examples.
+    """
+
     __slots__ = ('__weakref__', '_obj', '_context', '_configs', '_values',
                  '_unref', '_struct')
 
@@ -1313,50 +1435,69 @@ class Device(Filterable):
 
     @property
     def bcdUSB(self) -> int:
+        """
+        The USB version in use by the device, encoded as a binary coded
+        decimal. Also exposed as a float at self.usb_version.
+        """
         return self._struct.bcdUSB
 
     @property
     def bDeviceClass(self) -> USBClass:
+        """The USB class of this device."""
         return USBClass(self._struct.bDeviceClass)
 
     @property
     def bDeviceSubClass(self) -> int:
+        """The USB subclass of this device."""
         return self._struct.bDeviceSubClass
 
     @property
     def bDeviceProtocol(self) -> int:
+        """The protocol in used by this device."""
         return self._struct.bDeviceProtocol
 
     @property
     def bMaxPacketSize0(self) -> int:
+        """The max packet size for the control endpoint."""
         return self._struct.bMaxPacketSize0
 
     @property
     def idVendor(self) -> int:
+        """The vendor ID for this device."""
         return self._struct.idVendor
 
     @property
     def idProduct(self) -> int:
+        """The product ID for this device."""
         return self._struct.idProduct
 
     @property
     def bcdDevice(self) -> int:
+        """
+        The device revision number, as set by the manufacturer or software,
+        encoded as a binary coded decimal. Also exposed as a float at
+        self.device_revision.
+        """
         return self._struct.bcdDevice
 
     @property
     def iManufacturer(self) -> int:
+        """The ID of a string descriptor containing manufacturer information."""
         return self._struct.iManufacturer
 
     @property
     def iProduct(self) -> int:
+        """The ID of a string descriptor containing product information."""
         return self._struct.iProduct
 
     @property
     def iSerialNumber(self) -> int:
+        """The ID of a string descriptor containing the device's serial number."""
         return self._struct.iSerialNumber
 
     @property
     def bNumConfigurations(self) -> int:
+        """The number of configurations defined for this device."""
         return self._struct.bNumConfigurations
 
     @property

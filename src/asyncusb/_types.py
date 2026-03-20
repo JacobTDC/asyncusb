@@ -57,6 +57,7 @@ class Filterable(metaclass=FilterableMeta):
     __slots__ = ()
 
 
+# This function is part of the non-public API, and may change.
 def getfilterparts(ffilter: FindFilter) -> tuple[type, Callable[[object], bool],
                                                  tuple[FindFilter, ...]]:
     return ffilter._type, ffilter._test, ffilter._subfilters
